@@ -13,7 +13,6 @@
 #' @examples
 #' ckd_epi(creatinine = 50, age = 40, female = 0)
 #' ckd_epi(creatinine = 50, age = 40, female = 1)
-#'
 ckd_epi <- function(creatinine, age, female) {
   n_crea <- length(creatinine)
   n_age <- length(age)

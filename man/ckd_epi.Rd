@@ -25,5 +25,4 @@ Compare e.g. with \url{https://www.kidney.org/professionals/kdoqi/gfr_calculator
 \examples{
 ckd_epi(creatinine = 50, age = 40, female = 0)
 ckd_epi(creatinine = 50, age = 40, female = 1)
-
 }
