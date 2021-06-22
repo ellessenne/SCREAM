@@ -6,7 +6,7 @@
 #'
 #' @return Estimated eGFR, in mL/min/1.73m2.
 #'
-#' @note Compare e.g. with https://www.kidney.org/professionals/kdoqi/gfr_calculator.
+#' @note Compare e.g. with <https://www.kidney.org/professionals/kdoqi/gfr_calculator>.
 #'
 #' @export
 #'

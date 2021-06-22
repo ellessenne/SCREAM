@@ -20,7 +20,7 @@ Estimated eGFR, in mL/min/1.73m2.
 CKD-EPI Equation
 }
 \note{
-Compare e.g. with https://www.kidney.org/professionals/kdoqi/gfr_calculator.
+Compare e.g. with \url{https://www.kidney.org/professionals/kdoqi/gfr_calculator}.
 }
 \examples{
 ckd_epi(creatinine = 50, age = 40, female = 0)
