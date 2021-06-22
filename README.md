@@ -1,6 +1,7 @@
 # SCREAM
 
 <!-- badges: start -->
+[![R-CMD-check](https://github.com/ellessenne/SCREAM/workflows/R-CMD-check/badge.svg)](https://github.com/ellessenne/SCREAM/actions)
 <!-- badges: end -->
 
 Utility functions for data analysis in the context of the Stockholm CREAtinine Measurements project.
