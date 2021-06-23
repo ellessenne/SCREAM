@@ -25,3 +25,15 @@ A data frame with a row per subject and a column per \code{egfr} value.
 \description{
 Interpolate kidney function via a linear mixed effects model
 }
+\examples{
+
+df <- simulate_long_egfr(n = 100)
+model <- lme4::lmer(egfr ~ time + (time | lopnr), data = df)
+interpolate_date(
+  fit = model,
+  id = "lopnr",
+  egfr = c(60, 30),
+  origin = as.Date("2006-01-01"),
+  time_scale = "years"
+)
+}

@@ -12,6 +12,16 @@
 #' @export
 #'
 #' @examples
+#'
+#' df <- simulate_long_egfr(n = 100)
+#' model <- lme4::lmer(egfr ~ time + (time | lopnr), data = df)
+#' interpolate_date(
+#'   fit = model,
+#'   id = "lopnr",
+#'   egfr = c(60, 30),
+#'   origin = as.Date("2006-01-01"),
+#'   time_scale = "years"
+#' )
 interpolate_date <- function(fit, egfr, id, origin, time_scale) {
   # Match time_scale
   time_scale <- match.arg(arg = time_scale, choices = c("years", "days"), several.ok = FALSE)
