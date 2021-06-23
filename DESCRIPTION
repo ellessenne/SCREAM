@@ -15,11 +15,14 @@ Description: Utility function for data analysis using data from the Stockholm
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
+Imports:
+  lme4
 Suggests:
- covr,
- knitr,
- rmarkdown,
- testthat
+  checkmate,
+  covr,
+  knitr,
+  rmarkdown,
+  testthat
 URL: https://github.com/ellessenne/SCREAM
 BugReports: https://github.com/ellessenne/SCREAM/issues
 VignetteBuilder: knitr
