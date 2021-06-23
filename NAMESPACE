@@ -2,3 +2,4 @@
 
 export(ckd_epi)
 export(interpolate_date)
+export(simulate_long_egfr)

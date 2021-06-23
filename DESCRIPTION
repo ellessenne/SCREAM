@@ -16,7 +16,9 @@ License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
 Imports:
-  lme4
+  lme4,
+  stats,
+  mvtnorm
 Suggests:
   checkmate,
   covr,
