@@ -20,11 +20,11 @@ Imports:
   stats,
   mvtnorm
 Suggests:
-    checkmate,
-    covr,
-    knitr,
-    rmarkdown,
-    testthat (>= 3.0.0)
+  checkmate,
+  covr,
+  knitr,
+  rmarkdown,
+  testthat (>= 3.0.0)
 URL: https://github.com/ellessenne/SCREAM
 BugReports: https://github.com/ellessenne/SCREAM/issues
 VignetteBuilder: knitr
