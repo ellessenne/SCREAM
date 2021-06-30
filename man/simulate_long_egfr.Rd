@@ -13,7 +13,8 @@ simulate_long_egfr(
   sigma = 10,
   lambda = 1,
   size = 1,
-  prob = 0.1
+  prob = 0.1,
+  origin = NULL
 )
 }
 \arguments{
@@ -34,6 +35,8 @@ simulate_long_egfr(
 \item{size}{Parameter \code{'size'} for the negative binomial distribution; see \code{\link[stats:NegBinomial]{stats::dnbinom()}}.}
 
 \item{prob}{Parameter \code{'prob'} for the negative binomial distribution; see \code{\link[stats:NegBinomial]{stats::dnbinom()}}.}
+
+\item{origin}{If \code{origin = NULL} (the default), observation times are relative to a time zero. Otherwise, if a date is passed to \code{origin}, all dates are re-calculated relative to it.}
 }
 \value{
 A data frame with simulate data for \code{n} subjects.
@@ -43,6 +46,11 @@ Simulate longitudinal eGFR data
 }
 \examples{
 
+set.seed(42)
 df <- simulate_long_egfr(n = 3)
+df
+
+set.seed(42)
+df <- simulate_long_egfr(n = 3, origin = as.Date("2006-01-01"))
 df
 }

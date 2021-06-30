@@ -9,15 +9,31 @@
 #' @param lambda Parameter \eqn{lambda} of the baseline hazard for the exponential survival model.
 #' @param size Parameter `'size'` for the negative binomial distribution; see [stats::dnbinom()].
 #' @param prob Parameter `'prob'` for the negative binomial distribution; see [stats::dnbinom()].
+#' @param origin If `origin = NULL` (the default), observation times are relative to a time zero. Otherwise, if a date is passed to `origin`, all dates are re-calculated relative to it.
 #'
 #' @return A data frame with simulate data for `n` subjects.
 #' @export
 #'
 #' @examples
 #'
+#' set.seed(42)
 #' df <- simulate_long_egfr(n = 3)
 #' df
-simulate_long_egfr <- function(n, id = "lopnr", fixed_intercept = 100, fixed_slope = -1, B = matrix(data = c(100, 10, 10, 5), nrow = 2, ncol = 2), sigma = 10, lambda = 1, size = 1, prob = 0.1) {
+#'
+#' set.seed(42)
+#' df <- simulate_long_egfr(n = 3, origin = as.Date("2006-01-01"))
+#' df
+simulate_long_egfr <- function(n, id = "lopnr", fixed_intercept = 100, fixed_slope = -1, B = matrix(data = c(100, 10, 10, 5), nrow = 2, ncol = 2), sigma = 10, lambda = 1, size = 1, prob = 0.1, origin = NULL) {
+  n <- 3
+  id <- "lopnr"
+  fixed_intercept <- 100
+  fixed_slope <- -1
+  B <- matrix(data = c(100, 10, 10, 5), nrow = 2, ncol = 2)
+  sigma <- 10
+  lambda <- 1
+  size <- 1
+  prob <- 0.1
+  origin <- as.Date("2006-01-01")
 
   # Check arguments
   arg_checks <- checkmate::makeAssertCollection()
@@ -35,6 +51,8 @@ simulate_long_egfr <- function(n, id = "lopnr", fixed_intercept = 100, fixed_slo
   checkmate::assert_matrix(x = B, add = arg_checks)
   checkmate::assert_true(x = nrow(B) == 2, add = arg_checks)
   checkmate::assert_true(x = ncol(B) == 2, add = arg_checks)
+  # 'origin' must be a date or NULL
+  checkmate::assert_date(x = origin, null.ok = TRUE, add = arg_checks)
   # Report
   if (!arg_checks$isEmpty()) checkmate::reportAssertions(arg_checks)
 
@@ -65,6 +83,11 @@ simulate_long_egfr <- function(n, id = "lopnr", fixed_intercept = 100, fixed_slo
 
   # Simulate eGFR based everything else been done so far
   out$egfr <- out$intercept + out$slope * out$time + stats::rnorm(n = nrow(out), sd = sigma)
+
+  # If origin is supplied, provide dates
+  if (!is.null(origin)) {
+    out$time <- (out$time * 365.242) + origin
+  }
 
   # Return
   return(out)
