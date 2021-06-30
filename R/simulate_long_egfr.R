@@ -24,17 +24,6 @@
 #' df <- simulate_long_egfr(n = 3, origin = as.Date("2006-01-01"))
 #' df
 simulate_long_egfr <- function(n, id = "lopnr", fixed_intercept = 100, fixed_slope = -1, B = matrix(data = c(100, 10, 10, 5), nrow = 2, ncol = 2), sigma = 10, lambda = 1, size = 1, prob = 0.1, origin = NULL) {
-  n <- 3
-  id <- "lopnr"
-  fixed_intercept <- 100
-  fixed_slope <- -1
-  B <- matrix(data = c(100, 10, 10, 5), nrow = 2, ncol = 2)
-  sigma <- 10
-  lambda <- 1
-  size <- 1
-  prob <- 0.1
-  origin <- as.Date("2006-01-01")
-
   # Check arguments
   arg_checks <- checkmate::makeAssertCollection()
   # 'n', 'fixed_intercept', 'fixed_slope', 'sigma', 'lambda', 'size', 'prob' must be numeric
