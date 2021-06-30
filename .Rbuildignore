@@ -3,3 +3,4 @@
 ^LICENSE\.md$
 ^\.github$
 ^testing\.R$
+^codecov\.yml$
