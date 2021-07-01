@@ -4,3 +4,4 @@
 ^\.github$
 ^testing\.R$
 ^codecov\.yml$
+^data-raw$
