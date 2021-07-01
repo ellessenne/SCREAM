@@ -37,3 +37,13 @@ testthat::test_that("CKD-EPI equation returns correct results", {
     expected = 49
   )
 })
+
+testthat::test_that("CKD-EPI breaks with input data size mismatch", {
+  testthat::expect_error(object = floor(ckd_epi(creatinine = c(100, 90), age = 70, female = 0)))
+  testthat::expect_error(object = floor(ckd_epi(creatinine = 100, age = c(70, 65), female = 0)))
+  testthat::expect_error(object = floor(ckd_epi(creatinine = 100, age = 70, female = c(0, 1))))
+
+  testthat::expect_error(object = floor(ckd_epi(creatinine = c(100, 100), age = 70, female = c(0, 1))))
+  testthat::expect_error(object = floor(ckd_epi(creatinine = 100, age = c(70, 70), female = c(0, 1))))
+  testthat::expect_error(object = floor(ckd_epi(creatinine = c(100, 100), age = c(70, 65), female = 0)))
+})
