@@ -1,7 +1,7 @@
 Package: SCREAM
 Type: Package
 Title: Utility functions for data analysis in SCREAM
-Version: 2021.06.30
+Version: 2021.07.06
 Authors@R: c(
   person(given = "Alessandro", 
          family = "Gasparini", 
@@ -16,9 +16,10 @@ License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
 Imports:
+  comorbidity,
   lme4,
-  stats,
-  mvtnorm
+  mvtnorm,
+  stats
 Suggests:
   checkmate,
   covr,

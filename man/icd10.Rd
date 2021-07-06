@@ -11,6 +11,7 @@ A data frame with 51,118 rows and 6 variables:
 \item \code{date} Date corresponding to each code.
 \item \code{index_date} Index date (used e.g. to calculate multimorbidity at that specific point in time).
 \item \code{code} ICD-10 code.
+\item \code{origin} Origin of each ICD-10 code, with \code{origin = 1} denoting hospital care, \code{origin = 2} denoting secondary care, and \code{origin = 3} denoting primary care.
 \item \code{n} Sequential number for each observation.
 \item \code{N} Total number of observations per subject.
 }
