@@ -18,6 +18,7 @@ LazyData: true
 Imports:
   comorbidity,
   lme4,
+  matrixStats,
   mvtnorm,
   stats
 Suggests:

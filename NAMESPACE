@@ -2,4 +2,5 @@
 
 export(ckd_epi)
 export(interpolate_date)
+export(multimorbidity)
 export(simulate_long_egfr)

@@ -1,0 +1,248 @@
+#' Calculate multimorbidity domains
+#'
+#' @description Calculate 30 morbidity domains corresponding to chronic conditions, according to the definition of Tonelli et al. (see reference below).
+#'
+#' @param data Dataset used for data input. Must be in long format and contain a column with subject IDs, ICD-10 codes, dates at which each code was recorded, and an index date at which the conditions are calculated.
+#' @param id Name of the column identifying subject IDs in `data`.
+#' @param code Name of the column identifying ICD-10 codes in `data`.
+#' @param date Name of the column identifying dates at which codes are recorded in `data`.
+#' @param index_date Name of the column identifying index date in `data`.
+#'
+#' @return
+#'
+#' @references Tonelli, M., Wiebe, N., Fortin, M. et al. _Methods for identifying 30 chronic conditions: application to administrative data._ BMC Med Inform Decis Mak 15, 31 (2016). \doi{10.1186/s12911-015-0155-5}.
+#'
+#' @export
+#'
+multimorbidity <- function(data, id, code, date, index_date) {
+  data <- icd10
+  id <- "id"
+  code <- "code"
+  date <- "date"
+  index_date <- "index_date"
+
+  ### Check arguments
+  arg_checks <- checkmate::makeAssertCollection()
+  # x must be a data.frame (or a data.table)
+  checkmate::assert_true(all(class(data) %in% c("data.frame", "data.table", "tbl", "tbl_df")), add = arg_checks)
+  # id, code, date, index_date must be a single string value
+  checkmate::assert_string(id, add = arg_checks)
+  checkmate::assert_string(code, add = arg_checks)
+  checkmate::assert_string(date, add = arg_checks)
+  checkmate::assert_string(index_date, add = arg_checks)
+  # id, code, date, index_date must be in x
+  checkmate::assert_subset(id, choices = names(data), add = arg_checks)
+  checkmate::assert_subset(code, choices = names(data), add = arg_checks)
+  checkmate::assert_subset(date, choices = names(data), add = arg_checks)
+  checkmate::assert_subset(index_date, choices = names(data), add = arg_checks)
+  # Report if there are any errors
+  if (!arg_checks$isEmpty()) checkmate::reportAssertions(arg_checks)
+
+  ### Tidy codes
+  data <- comorbidity:::.tidy(x = data, code = code)
+
+  x <- data
+  ### Subset only 'id' and 'code' columns
+  if (data.table::is.data.table(x)) {
+    x <- x[, c(id, code), with = FALSE]
+  } else {
+    x <- x[, c(id, code)]
+  }
+
+  ### Turn x into a DT
+  data.table::setDT(x)
+
+  ### Pick regex
+  regex <- .multimorbidity_codes()
+  regex <- lapply(X = regex, FUN = .collapse_codes)
+
+  ### Get list of unique codes used in dataset that match comorbidities
+  loc <- sapply(regex, grep, unique(x[[code]]), value = TRUE)
+  loc <- utils::stack(loc)
+  names(loc)[1] <- code
+
+  ### Merge list with original data.table (data.frame)
+  x <- merge(x, loc, all.x = TRUE, allow.cartesian = TRUE)
+  x[[code]] <- NULL
+  x <- unique(x)
+
+  ### Spread wide
+  xin <- x[, c(id, "ind"), with = FALSE]
+  xin[, value := 1L]
+  x <- data.table::dcast.data.table(xin, stats::as.formula(paste(id, "~ ind")), fill = 0)
+  x[["NA"]] <- NULL
+
+  ### Add missing columns
+  for (col in names(regex)) {
+    if (is.null(x[[col]])) x[, col := 0, with = FALSE]
+  }
+
+  ### Process cirrhosis
+  x[, cirrhosis := pmin(cirrhosis1, cirrhosis2)]
+  x[["cirrhosis1"]] <- NULL
+  x[["cirrhosis2"]] <- NULL
+
+  ### Re-order columns
+  data.table::setcolorder(x, c(id, sort(names(regex))))
+
+  ### Return
+  return(x)
+}
+
+#' @keywords internal
+.multimorbidity_codes <- function() {
+  list(
+    alcohol_misuse = c("E52", "F10", "G621", "I426", "K292", "K700", "K703", "K709", "T51", "Z502", "Z714", "Z721"),
+    asthma = c("J45"),
+    afib = c("I480"),
+    cancer_lymphoma = c("C81", "C82", "C83", "C84", "C85", "C88", "C900", "C902", "C96"),
+    cancer_metastatic = c("C77", "C78", "C79", "C80"),
+    cancer_nonmetastatic = c("C18", "C19", "C20", "C21", "C33", "C34", "C384", "C450", "C4671", "C50", "C53", "C61", "D010", "D011", "D012", "D013", "D022", "D05", "D06", "D075"),
+    chf = c("I099", "I255", "I420", "I425", "I426", "I427", "I428", "I429", "I43", "I50"),
+    ckd = c("N00", "N01", "N02", "N03", "N04", "N05", "N06", "N07", "N08", "N10", "N11", "N12", "N13", "N14", "N15", "N16", "N17", "N18", "N19", "N20", "N21", "N22", "N23"),
+    cpain = c("F454", "M081", "M255", "M432", "M433", "M434", "M435", "M436", "M45", "M461", "M463", "M464", "M469", "M47", "M480", "M481", "M488", "M489", "M508", "M509", "M51", "M531", "M532", "M533", "M538", "M539", "M54", "M608", "M609", "M633", "M790", "M791", "M792", "M796", "M797", "M961"),
+    cpd = c("I278", "I279", "J40", "J41", "J42", "J43", "J44", "J46", "J47", "J60", "J61", "J62", "J63", "J64", "J65", "J66", "J67", "J684", "J701", "J703"),
+    cvhepatitis = c("B16", "B180", "B181"),
+    cirrhosis1 = c("K703", "K743", "K744", "K745", "K746"),
+    cirrhosis2 = c("I850", "I859", "I982", "I983", "K650", "K658", "K659", "K670", "K671", "K672", "K673", "K678", "K767", "K930", "R18"),
+    dementia = c("F00", "F01", "F02", "F03", "F051", "G30", "G311"),
+    depression = c("F204", "F313", "F314", "F315", "F32", "F33", "F341", "F412", "F432"),
+    diabetes = c("E10", "E11", "E12", "E13", "E14"),
+    epilepsy = c("G40", "G41"),
+    hypertension = c("I10", "I11", "I12", "I13", "I15"),
+    hypothyroidism = c("E00", "E01", "E02", "E03", "E890"),
+    ibd = c("K50", "K51"),
+    ibs = c("K58"),
+    multiple_sclerosis = c("G35", "G36", "G37", "H46"),
+    mi = c("I21", "I22"),
+    parkinson = c("G20", "G21", "G22"),
+    pud = c("K257", "K259", "K267", "K269", "K277", "K279", "K287", "K289"),
+    pvd = c("I702"),
+    psoriasis = c("L400", "L401", "L402", "L403", "L404", "L408", "L409"),
+    rheum_artritis = c("M05", "M06", "M315", "M32", "M33", "M34", "M351", "M353", "M360"),
+    schizofrenia = c("F20", "F21", "F232", "F25"),
+    severe_constipation = c("K558", "K560", "K564", "K567", "K590", "K631", "K634", "K638", "K928"),
+    stroke = c("G450", "G451", "G452", "G453", "G458", "G459", "H341", "I60", "I61", "I63", "I64")
+  )
+}
+
+#' @keywords internal
+.multimorbidity_exclusions <- function() {
+  list(
+    alcohol_misuse = NULL,
+    asthma = NULL,
+    afib = NULL,
+    cancer_lymphoma = NULL,
+    cancer_metastatic = NULL,
+    cancer_nonmetastatic = NULL,
+    chf = NULL,
+    ckd = NULL,
+    cpain = NULL,
+    cpd = NULL,
+    cvhepatitis = NULL,
+    cirrhosis1 = NULL,
+    cirrhosis2 = NULL,
+    dementia = NULL,
+    depression = NULL,
+    diabetes = NULL,
+    epilepsy = NULL,
+    hypertension = NULL,
+    hypothyroidism = NULL,
+    ibd = NULL,
+    ibs = c("C18", "C19", "C20", "C21", "C25", "C56", "C785", "C796", "D017", "D019", "D371", "D372", "D373", "D374", "D375", "K50", "K51", "K702", "K703", "K740", "K742", "K746", "K860", "K861", "K90", "K912"),
+    multiple_sclerosis = NULL,
+    mi = NULL,
+    parkinson = NULL,
+    pud = NULL,
+    pvd = NULL,
+    psoriasis = NULL,
+    rheum_artritis = NULL,
+    schizofrenia = NULL,
+    severe_constipation = c(
+      "C17", "C18", "C19", "C20", "C21", "C451", "C48", "C51", "C52",
+      "C53", "C54", "C55", "C56", "C57", "C58", "C60", "C61", "C62",
+      "C63", "C64", "C65", "C66", "C67", "C68", "C785", "C786",
+      "D017", "D019", "D371", "D372", "D373", "D374", "D375",
+      "K50", "K51", "K660", "N736", "N994"
+    ),
+    # These are to be excluded C17-C21, C45.1, C48, C51-C58, C60-C68, C78.5-C78.6, D01.7, D01.9, D37.1-D37.5, K50-K51, K66.0, N73.6, N99.4 (K56.6 if R10.1), and any CCPx surgery listed in claims
+    stroke = NULL
+  )
+}
+
+#' @keywords internal
+.multimorbidity_permanent <- function() {
+  list(
+    alcohol_misuse = TRUE,
+    asthma = TRUE,
+    afib = TRUE,
+    cancer_lymphoma = 5,
+    cancer_metastatic = 5,
+    cancer_nonmetastatic = 5,
+    chf = TRUE,
+    ckd = TRUE,
+    cpain = 2,
+    cpd = TRUE,
+    cvhepatitis = TRUE,
+    cirrhosis1 = TRUE,
+    cirrhosis2 = TRUE,
+    dementia = TRUE,
+    depression = 2,
+    diabetes = TRUE,
+    epilepsy = TRUE,
+    hypertension = TRUE,
+    hypothyroidism = TRUE,
+    ibd = TRUE,
+    ibs = TRUE,
+    multiple_sclerosis = TRUE,
+    mi = TRUE,
+    parkinson = TRUE,
+    pud = 2,
+    pvd = TRUE,
+    psoriasis = TRUE,
+    rheum_artritis = TRUE,
+    schizofrenia = TRUE,
+    severe_constipation = 2,
+    stroke = TRUE
+  )
+}
+
+#' @keywords internal
+.multimorbidity_algorithm <- function() {
+  list(
+    alcohol_misuse = list(hospitalisations = 1, claims = 2, accs = NA, years = 2),
+    asthma = list(hospitalisations = 1, claims = NA, accs = 3, years = 2),
+    afib = list(hospitalisations = 1, claims = 2, accs = NA, years = 2),
+    cancer_lymphoma = list(hospitalisations = 1, claims = 2, accs = NA, years = 2),
+    cancer_metastatic = list(hospitalisations = 1, claims = 2, accs = NA, years = 2),
+    cancer_nonmetastatic = list(hospitalisations = 1, claims = 2, accs = NA, years = 2),
+    chf = list(hospitalisations = 1, claims = 2, accs = NA, years = 2),
+    ckd = list(hospitalisations = 1, claims = 3, accs = NA, years = 1),
+    cpain = list(hospitalisations = 2, claims = 2, accs = 2, years = 1 / 12),
+    cpd = list(hospitalisations = 1, claims = 2, accs = NA, years = 2),
+    cvhepatitis = list(hospitalisations = 2, claims = 2, accs = 2, years = 6 / 12),
+    cirrhosis1 = list(hospitalisations = 1, claims = 1, accs = 1, years = NA),
+    cirrhosis2 = list(hospitalisations = 1, claims = 1, accs = 1, years = NA),
+    dementia = list(hospitalisations = 1, claims = 2, accs = NA, years = 2),
+    depression = list(hospitalisations = 1, claims = 2, accs = NA, years = 2),
+    diabetes = list(hospitalisations = 1, claims = 2, accs = NA, years = 2),
+    epilepsy = list(hospitalisations = 1, claims = 2, accs = 1, years = 2),
+    hypertension = list(hospitalisations = 1, claims = 2, accs = NA, years = 2),
+    hypothyroidism = list(hospitalisations = 1, claims = 2, accs = NA, years = 2),
+    ibd = list(hospitalisations = 2, claims = 2, accs = NA, years = 3),
+    ibs = list(hospitalisations = 1, claims = 2, accs = NA, years = 2),
+    multiple_sclerosis = list(hospitalisations = 2, claims = 2, accs = NA, years = 3),
+    mi = list(hospitalisations = 1, claims = NA, accs = NA, years = NA),
+    parkinson = list(hospitalisations = 1, claims = 1, accs = NA, years = NA),
+    pud = list(hospitalisations = 1, claims = 2, accs = NA, years = 2),
+    pvd = list(hospitalisations = 1, claims = 1, accs = 1, years = NA),
+    psoriasis = list(hospitalisations = 1, claims = 1, accs = NA, years = NA),
+    rheum_artritis = list(hospitalisations = 1, claims = 2, accs = NA, years = 2),
+    schizofrenia = list(hospitalisations = 1, claims = 2, accs = NA, years = 2),
+    severe_constipation = list(hospitalisations = 1, claims = 2, accs = NA, years = 2),
+    stroke = list(hospitalisations = 1, claims = 1, accs = 1, years = NA)
+  )
+}
+
+#' @keywords internal
+.collapse_codes <- function(x) paste0("^", paste(x[[1]], collapse = "|^"))
