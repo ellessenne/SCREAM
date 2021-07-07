@@ -17,6 +17,7 @@ Encoding: UTF-8
 LazyData: true
 Imports:
   comorbidity,
+  data.table,
   lme4,
   matrixStats,
   mvtnorm,

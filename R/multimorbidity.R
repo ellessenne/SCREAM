@@ -41,49 +41,81 @@ multimorbidity <- function(data, id, code, date, index_date) {
   ### Tidy codes
   data <- comorbidity:::.tidy(x = data, code = code)
 
-  x <- data
-  ### Subset only 'id' and 'code' columns
-  if (data.table::is.data.table(x)) {
-    x <- x[, c(id, code), with = FALSE]
-  } else {
-    x <- x[, c(id, code)]
-  }
-
   ### Turn x into a DT
-  data.table::setDT(x)
+  data.table::setDT(data)
+
+  ### Subset only 'id' and 'code' columns
+  mv <- c(id, code)
+  data <- data[, ..mv]
+
+  ### Keep only codes that can be used somewhere
+  allc <- c(.multimorbidity_codes(), .multimorbidity_exclusions())
+  idx <- vapply(X = allc, FUN = function(x) !is.null(x), FUN.VALUE = logical(length = 1L))
+  allc <- allc[idx]
+  allc <- lapply(X = allc, FUN = .collapse_codes)
+  allc <- paste(allc, collapse = "|")
+  ids <- unique(data[[id]])
+  safetydf <- data.table::data.table(ids)
+  data.table::setnames(safetydf, new = id)
+  data <- data[grepl(pattern = allc, x = code), ]
+  data <- merge(data, safetydf, all.y = TRUE, allow.cartesian = TRUE)
+  data.table::set(data, which(is.na(data[[code]])), code, ".ZZZ")
 
   ### Pick regex
   regex <- .multimorbidity_codes()
   regex <- lapply(X = regex, FUN = .collapse_codes)
 
   ### Get list of unique codes used in dataset that match comorbidities
-  loc <- sapply(regex, grep, unique(x[[code]]), value = TRUE)
+  loc <- sapply(regex, grep, unique(data[[code]]), value = TRUE)
   loc <- utils::stack(loc)
-  names(loc)[1] <- code
+  data.table::setDT(loc)
+  data.table::setnames(x = loc, new = c(code, "ind"))
 
   ### Merge list with original data.table (data.frame)
-  x <- merge(x, loc, all.x = TRUE, allow.cartesian = TRUE)
-  x[[code]] <- NULL
+  x <- merge(data, loc, all.x = TRUE, allow.cartesian = TRUE, by = code)
+  x[, (code) := NULL]
   x <- unique(x)
 
   ### Spread wide
-  xin <- x[, c(id, "ind"), with = FALSE]
+  mv <- c(id, "ind")
+  xin <- x[, ..mv]
   xin[, value := 1L]
   x <- data.table::dcast.data.table(xin, stats::as.formula(paste(id, "~ ind")), fill = 0)
-  x[["NA"]] <- NULL
+  x[, `NA` := NULL]
 
   ### Add missing columns
   for (col in names(regex)) {
-    if (is.null(x[[col]])) x[, col := 0, with = FALSE]
+    if (is.null(x[[col]])) x[, (col) := 0]
   }
 
   ### Process cirrhosis
   x[, cirrhosis := pmin(cirrhosis1, cirrhosis2)]
-  x[["cirrhosis1"]] <- NULL
-  x[["cirrhosis2"]] <- NULL
+  x[, cirrhosis1 := NULL]
+  x[, cirrhosis2 := NULL]
 
   ### Re-order columns
-  data.table::setcolorder(x, c(id, sort(names(regex))))
+  data.table::setcolorder(x, c(id, sort(names(x)[names(x) != id])))
+
+  ### Process exclusions
+  #   (It's the same algorithm as before, but with exclusion codes...)
+  excl <- .multimorbidity_exclusions()
+  idx <- vapply(X = excl, FUN = function(x) !is.null(x), FUN.VALUE = logical(length = 1L))
+  excl <- excl[idx]
+  excl <- lapply(X = excl, FUN = .collapse_codes)
+  loc <- sapply(excl, grep, unique(data[[code]]), value = TRUE)
+  loc <- utils::stack(loc)
+  data.table::setDT(loc)
+  data.table::setnames(x = loc, new = c(code, "ind"))
+  ex <- merge(data, loc, all.x = TRUE, allow.cartesian = TRUE, by = code)
+  ex[, (code) := NULL]
+  ex <- unique(ex)
+  exin <- ex[, ..mv]
+  exin[, value := 1L]
+  ex <- data.table::dcast.data.table(exin, stats::as.formula(paste(id, "~ ind")), fill = 0)
+  ex[, `NA` := NULL]
+  # ->
+  x[, ibs := ibs * (1 - ex$ibs)]
+  x[, severe_constipation := severe_constipation * (1 - ex$severe_constipation)]
 
   ### Return
   return(x)
@@ -245,4 +277,4 @@ multimorbidity <- function(data, id, code, date, index_date) {
 }
 
 #' @keywords internal
-.collapse_codes <- function(x) paste0("^", paste(x[[1]], collapse = "|^"))
+.collapse_codes <- function(x) paste0("^", paste(x, collapse = "|^"))
