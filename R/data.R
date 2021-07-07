@@ -1,6 +1,6 @@
 #' @title Example of a dataset with ICD-10 codes
 #'
-#' @format A data frame with 51,118 rows and 6 variables:
+#' @format A data frame with 123,772 rows and 7 variables, for 5,000 subjects. Included variables are:
 #' * `id` Subject ID.
 #' * `date` Date corresponding to each code.
 #' * `index_date` Index date (used e.g. to calculate multimorbidity at that specific point in time).

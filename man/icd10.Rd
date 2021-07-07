@@ -5,7 +5,7 @@
 \alias{icd10}
 \title{Example of a dataset with ICD-10 codes}
 \format{
-A data frame with 51,118 rows and 6 variables:
+A data frame with 123,772 rows and 7 variables, for 5,000 subjects. Included variables are:
 \itemize{
 \item \code{id} Subject ID.
 \item \code{date} Date corresponding to each code.

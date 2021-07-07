@@ -4,9 +4,9 @@ library(tidyverse)
 
 set.seed(329746238)
 
-.N <- 3000
-.n <- rpois(n = .N, lambda = 60)
-.dates <- seq(as.Date("2015-01-01"), as.Date("2019-12-31"), by = 1)
+.N <- 5000
+.n <- rpois(n = .N, lambda = 50)
+.dates <- seq(as.Date("2010-01-01"), as.Date("2019-12-31"), by = 1)
 
 icd10 <- data.frame(
   id = rep(x = seq(.N), times = .n),
