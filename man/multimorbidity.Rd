@@ -4,7 +4,7 @@
 \alias{multimorbidity}
 \title{Calculate multimorbidity domains}
 \usage{
-multimorbidity(data, id, code, date, index_date)
+multimorbidity(data, id, code, date, index_date, verbose = FALSE)
 }
 \arguments{
 \item{data}{Dataset used for data input. Must be in long format and contain a column with subject IDs, ICD-10 codes, dates at which each code was recorded, and an index date at which the conditions are calculated.}
@@ -16,12 +16,25 @@ multimorbidity(data, id, code, date, index_date)
 \item{date}{Name of the column identifying dates at which codes are recorded in \code{data}.}
 
 \item{index_date}{Name of the column identifying index date in \code{data}.}
+
+\item{verbose}{Print out completed steps, which might be useful with big datasets to track progress.}
 }
 \value{
 
 }
 \description{
 Calculate 30 morbidity domains corresponding to chronic conditions, according to the definition of Tonelli et al. (see reference below).
+}
+\examples{
+data("icd10", package = "SCREAM")
+multimorbidity(
+  data = icd10,
+  id = "id",
+  code = "code",
+  date = "date",
+  index_date = "index_date",
+  verbose = TRUE
+)
 }
 \references{
 Tonelli, M., Wiebe, N., Fortin, M. et al. \emph{Methods for identifying 30 chronic conditions: application to administrative data.} BMC Med Inform Decis Mak 15, 31 (2016). \doi{10.1186/s12911-015-0155-5}.

@@ -7,6 +7,7 @@
 #' @param code Name of the column identifying ICD-10 codes in `data`.
 #' @param date Name of the column identifying dates at which codes are recorded in `data`.
 #' @param index_date Name of the column identifying index date in `data`.
+#' @param verbose Print out completed steps, which might be useful with big datasets to track progress.
 #'
 #' @return
 #'
@@ -14,39 +15,45 @@
 #'
 #' @export
 #'
-multimorbidity <- function(data, id, code, date, index_date) {
-  data <- icd10
-  id <- "id"
-  code <- "code"
-  date <- "date"
-  index_date <- "index_date"
-
+#' @examples
+#' data("icd10", package = "SCREAM")
+#' multimorbidity(
+#'   data = icd10,
+#'   id = "id",
+#'   code = "code",
+#'   date = "date",
+#'   index_date = "index_date",
+#'   verbose = TRUE
+#' )
+multimorbidity <- function(data, id, code, date, index_date, verbose = FALSE) {
   ### Check arguments
   arg_checks <- checkmate::makeAssertCollection()
   # x must be a data.frame (or a data.table)
-  checkmate::assert_true(all(class(data) %in% c("data.frame", "data.table", "tbl", "tbl_df")), add = arg_checks)
+  checkmate::assert_true(x = all(class(data) %in% c("data.frame", "data.table", "tbl", "tbl_df")), add = arg_checks)
   # id, code, date, index_date must be a single string value
-  checkmate::assert_string(id, add = arg_checks)
-  checkmate::assert_string(code, add = arg_checks)
-  checkmate::assert_string(date, add = arg_checks)
-  checkmate::assert_string(index_date, add = arg_checks)
+  checkmate::assert_string(x = id, add = arg_checks)
+  checkmate::assert_string(x = code, add = arg_checks)
+  checkmate::assert_string(x = date, add = arg_checks)
+  checkmate::assert_string(x = index_date, add = arg_checks)
+  # verbose must be a boolean
+  checkmate::assert_logical(x = verbose, len = 1, add = arg_checks)
   # id, code, date, index_date must be in x
-  checkmate::assert_subset(id, choices = names(data), add = arg_checks)
-  checkmate::assert_subset(code, choices = names(data), add = arg_checks)
-  checkmate::assert_subset(date, choices = names(data), add = arg_checks)
-  checkmate::assert_subset(index_date, choices = names(data), add = arg_checks)
+  checkmate::assert_subset(x = id, choices = names(data), add = arg_checks)
+  checkmate::assert_subset(x = code, choices = names(data), add = arg_checks)
+  checkmate::assert_subset(x = date, choices = names(data), add = arg_checks)
+  checkmate::assert_subset(x = index_date, choices = names(data), add = arg_checks)
   # Report if there are any errors
   if (!arg_checks$isEmpty()) checkmate::reportAssertions(arg_checks)
 
   ### Tidy codes
   data <- comorbidity:::.tidy(x = data, code = code)
+  if (verbose) usethis::ui_done("Tidied codes...")
 
   ### Turn x into a DT
   data.table::setDT(data)
 
-  ### Subset only 'id' and 'code' columns
-  mv <- c(id, code)
-  data <- data[, ..mv]
+  ### Save a vector of IDs
+  IDs <- data[[id]]
 
   ### Keep only codes that can be used somewhere
   allc <- c(.multimorbidity_codes(), .multimorbidity_exclusions())
@@ -54,71 +61,86 @@ multimorbidity <- function(data, id, code, date, index_date) {
   allc <- allc[idx]
   allc <- lapply(X = allc, FUN = .collapse_codes)
   allc <- paste(allc, collapse = "|")
-  ids <- unique(data[[id]])
-  safetydf <- data.table::data.table(ids)
-  data.table::setnames(safetydf, new = id)
+  mv <- c(id, index_date)
+  safetydf <- data[, ..mv]
+  safetydf <- unique(safetydf)
   data <- data[grepl(pattern = allc, x = code), ]
-  data <- merge(data, safetydf, all.y = TRUE, allow.cartesian = TRUE)
-  data.table::set(data, which(is.na(data[[code]])), code, ".ZZZ")
+  data <- merge(data, safetydf, all.y = TRUE, allow.cartesian = TRUE, by = c(id, index_date))
+  data.table::set(data, which(is.na(data[[code]])), code, ".NOTACODE!")
+  data[[date]][is.na(data[[date]])] <- data[[index_date]][is.na(data[[date]])]
+  if (verbose) usethis::ui_done("Subset only relevant codes...")
 
-  ### Pick regex
-  regex <- .multimorbidity_codes()
-  regex <- lapply(X = regex, FUN = .collapse_codes)
+  ### Apply permanence of codes
+  data <- data[(date) <= (index_date), ]
+  data[, ...yd := (index_date) - (date)]
+  data[, ...yd := as.numeric(...yd) / 365.242]
+  data[, ...target := NA]
+  for (k in seq_along(.multimorbidity_codes())) {
+    if (!isTRUE(.multimorbidity_permanent()[[k]])) {
+      idx <- grep(pattern = .collapse_codes(x = .multimorbidity_codes()[[k]]), x = data[[code]])
+      data$...target[idx] <- .multimorbidity_permanent()[[k]]
+    }
+  }
+  data <- data[is.na(...target) | ...yd <= ...target]
+  data[, ...yd := NULL]
+  data[, ...target := NULL]
+  if (verbose) usethis::ui_done("Applied permanence of codes...")
 
-  ### Get list of unique codes used in dataset that match comorbidities
-  loc <- sapply(regex, grep, unique(data[[code]]), value = TRUE)
-  loc <- utils::stack(loc)
-  data.table::setDT(loc)
-  data.table::setnames(x = loc, new = c(code, "ind"))
+  ### Subset only 'id' and 'code' columns
+  mv <- c(id, code)
+  data <- data[, ..mv]
 
-  ### Merge list with original data.table (data.frame)
-  x <- merge(data, loc, all.x = TRUE, allow.cartesian = TRUE, by = code)
-  x[, (code) := NULL]
-  x <- unique(x)
-
-  ### Spread wide
-  mv <- c(id, "ind")
-  xin <- x[, ..mv]
-  xin[, value := 1L]
-  x <- data.table::dcast.data.table(xin, stats::as.formula(paste(id, "~ ind")), fill = 0)
-  x[, `NA` := NULL]
-
-  ### Add missing columns
-  for (col in names(regex)) {
-    if (is.null(x[[col]])) x[, (col) := 0]
+  ### Apply all regex
+  for (k in seq_along(.multimorbidity_codes())) {
+    cds <- .collapse_codes(x = .multimorbidity_codes()[[k]])
+    data[, (names(.multimorbidity_codes())[k]) := grepl(pattern = cds, x = code)]
+    if (verbose) {
+      if (names(.multimorbidity_codes())[k] == "cirrhosis1") {
+      } else if (names(.multimorbidity_codes())[k] == "cirrhosis2") {
+        usethis::ui_done("Done with cirrhosis...")
+      } else {
+        usethis::ui_done("Done with {names(.multimorbidity_codes())[k]}...")
+      }
+    }
   }
 
-  ### Process cirrhosis
-  x[, cirrhosis := pmin(cirrhosis1, cirrhosis2)]
-  x[, cirrhosis1 := NULL]
-  x[, cirrhosis2 := NULL]
-
-  ### Re-order columns
-  data.table::setcolorder(x, c(id, sort(names(x)[names(x) != id])))
+  ### Summarise by 'id'
+  out <- lapply(X = names(.multimorbidity_codes()), FUN = function(n) {
+    data[, setNames(list(sum(get(n))), n), by = id]
+  })
+  out <- Reduce(function(...) merge(..., all = T, by = id), out)
+  data.table::setorderv(out, cols = id)
 
   ### Process exclusions
-  #   (It's the same algorithm as before, but with exclusion codes...)
-  excl <- .multimorbidity_exclusions()
-  idx <- vapply(X = excl, FUN = function(x) !is.null(x), FUN.VALUE = logical(length = 1L))
-  excl <- excl[idx]
-  excl <- lapply(X = excl, FUN = .collapse_codes)
-  loc <- sapply(excl, grep, unique(data[[code]]), value = TRUE)
-  loc <- utils::stack(loc)
-  data.table::setDT(loc)
-  data.table::setnames(x = loc, new = c(code, "ind"))
-  ex <- merge(data, loc, all.x = TRUE, allow.cartesian = TRUE, by = code)
-  ex[, (code) := NULL]
-  ex <- unique(ex)
-  exin <- ex[, ..mv]
-  exin[, value := 1L]
-  ex <- data.table::dcast.data.table(exin, stats::as.formula(paste(id, "~ ind")), fill = 0)
-  ex[, `NA` := NULL]
+  mv <- c(id, code)
+  data <- data[, ..mv]
+  for (k in seq_along(.multimorbidity_exclusions())) {
+    if (!is.null(.multimorbidity_exclusions()[[k]])) {
+      cds <- .collapse_codes(x = .multimorbidity_exclusions()[[k]])
+      data[, (names(.multimorbidity_codes())[k]) := grepl(pattern = cds, x = code)]
+    }
+  }
+  excl <- lapply(X = names(.multimorbidity_exclusions()), FUN = function(n) {
+    if (!is.null(.multimorbidity_exclusions()[[n]])) {
+      data[, setNames(list(sum(get(n))), n), by = id]
+    }
+  })
+  excl <- excl[!vapply(X = excl, FUN = is.null, FUN.VALUE = logical(length = 1L))]
+  excl <- Reduce(function(...) merge(..., all = T, by = id), excl)
+  data.table::setorderv(excl, cols = id)
+  for (n in names(excl)) {
+    if (n != id) {
+      excl[, (n) := ifelse(get(n) > 0, 1, 0)]
+    }
+  }
   # ->
-  x[, ibs := ibs * (1 - ex$ibs)]
-  x[, severe_constipation := severe_constipation * (1 - ex$severe_constipation)]
+  out[, ibs := ibs * (1 - excl$ibs)]
+  out[, severe_constipation := severe_constipation * (1 - excl$severe_constipation)]
+  if (verbose) usethis::ui_done("Applied exclusions...")
 
   ### Return
-  return(x)
+  if (verbose) usethis::ui_done("Done!")
+  return(out)
 }
 
 #' @keywords internal

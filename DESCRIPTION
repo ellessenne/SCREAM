@@ -15,13 +15,16 @@ Description: Utility function for data analysis using data from the Stockholm
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
+Depends: 
+  R (>= 2.10),
+  data.table
 Imports:
   comorbidity,
-  data.table,
   lme4,
   matrixStats,
   mvtnorm,
-  stats
+  stats,
+  usethis
 Suggests:
   checkmate,
   covr,
@@ -36,5 +39,4 @@ RoxygenNote: 7.1.1
 ByteCompile: true
 Language: en-GB
 Config/testthat/edition: 3
-Depends: 
-    R (>= 2.10)
+  
