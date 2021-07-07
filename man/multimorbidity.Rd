@@ -20,7 +20,7 @@ multimorbidity(data, id, code, date, index_date, verbose = FALSE)
 \item{verbose}{Print out completed steps, which might be useful with big datasets to track progress.}
 }
 \value{
-
+A dataset with a row per individual.
 }
 \description{
 Calculate 30 morbidity domains corresponding to chronic conditions, according to the definition of Tonelli et al. (see reference below).

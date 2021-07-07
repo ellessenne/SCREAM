@@ -1,7 +1,7 @@
 Package: SCREAM
 Type: Package
 Title: Utility functions for data analysis in SCREAM
-Version: 2021.07.06
+Version: 2021.07.07
 Authors@R: c(
   person(given = "Alessandro", 
          family = "Gasparini", 
@@ -21,7 +21,6 @@ Depends:
 Imports:
   comorbidity,
   lme4,
-  matrixStats,
   mvtnorm,
   stats,
   usethis

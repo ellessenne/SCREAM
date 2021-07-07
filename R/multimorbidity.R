@@ -9,7 +9,7 @@
 #' @param index_date Name of the column identifying index date in `data`.
 #' @param verbose Print out completed steps, which might be useful with big datasets to track progress.
 #'
-#' @return
+#' @return A dataset with a row per individual.
 #'
 #' @references Tonelli, M., Wiebe, N., Fortin, M. et al. _Methods for identifying 30 chronic conditions: application to administrative data._ BMC Med Inform Decis Mak 15, 31 (2016). \doi{10.1186/s12911-015-0155-5}.
 #'
@@ -106,7 +106,7 @@ multimorbidity <- function(data, id, code, date, index_date, verbose = FALSE) {
 
   ### Summarise by 'id'
   out <- lapply(X = names(.multimorbidity_codes()), FUN = function(n) {
-    data[, setNames(list(sum(get(n))), n), by = id]
+    data[, stats::setNames(list(sum(get(n))), n), by = id]
   })
   out <- Reduce(function(...) merge(..., all = T, by = id), out)
   data.table::setorderv(out, cols = id)
@@ -122,7 +122,7 @@ multimorbidity <- function(data, id, code, date, index_date, verbose = FALSE) {
   }
   excl <- lapply(X = names(.multimorbidity_exclusions()), FUN = function(n) {
     if (!is.null(.multimorbidity_exclusions()[[n]])) {
-      data[, setNames(list(sum(get(n))), n), by = id]
+      data[, stats::setNames(list(sum(get(n))), n), by = id]
     }
   })
   excl <- excl[!vapply(X = excl, FUN = is.null, FUN.VALUE = logical(length = 1L))]
