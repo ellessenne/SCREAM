@@ -84,6 +84,9 @@ multimorbidity <- function(data, id, code, date, index_date, verbose = FALSE) {
   data <- data[is.na(...target) | ...yd <= ...target]
   data[, ...yd := NULL]
   data[, ...target := NULL]
+  data <- merge(data, safetydf, all.y = TRUE, allow.cartesian = TRUE, by = c(id, index_date))
+  data.table::set(data, which(is.na(data[[code]])), code, ".NOTACODE!")
+  data[[date]][is.na(data[[date]])] <- data[[index_date]][is.na(data[[date]])]
   if (verbose) usethis::ui_done("Applied permanence of codes...")
 
   ### Subset only 'id' and 'code' columns
@@ -105,12 +108,12 @@ multimorbidity <- function(data, id, code, date, index_date, verbose = FALSE) {
   }
 
   ### Summarise by 'id'
-  out <- lapply(X = names(.multimorbidity_codes()), FUN = function(n) {
+  out <- purrr::map(.x = names(.multimorbidity_codes()), .f = function(n) {
     # Use the following line instead to count the number of matches:
     # data[, stats::setNames(list(sum(get(n))), n), by = id]
     data[, stats::setNames(list(as.numeric(sum(get(n)) > 0)), n), by = id]
   })
-  out <- Reduce(function(...) merge(..., all = T, by = id), out)
+  out <- purrr::reduce(.x = out, .f = merge, all = TRUE, by = id)
   data.table::setorderv(out, cols = id)
 
   ### Process exclusions
@@ -122,13 +125,13 @@ multimorbidity <- function(data, id, code, date, index_date, verbose = FALSE) {
       data[, (names(.multimorbidity_codes())[k]) := grepl(pattern = cds, x = code)]
     }
   }
-  excl <- lapply(X = names(.multimorbidity_exclusions()), FUN = function(n) {
+  excl <- purrr::map(.x = names(.multimorbidity_exclusions()), .f = function(n) {
     if (!is.null(.multimorbidity_exclusions()[[n]])) {
       data[, stats::setNames(list(sum(get(n))), n), by = id]
     }
   })
   excl <- excl[!vapply(X = excl, FUN = is.null, FUN.VALUE = logical(length = 1L))]
-  excl <- Reduce(function(...) merge(..., all = T, by = id), excl)
+  excl <- purrr::reduce(.x = excl, .f = merge, all = TRUE, by = id)
   data.table::setorderv(excl, cols = id)
   for (n in names(excl)) {
     if (n != id) {
@@ -142,6 +145,7 @@ multimorbidity <- function(data, id, code, date, index_date, verbose = FALSE) {
 
   ### Return
   if (verbose) usethis::ui_done("Done!")
+  out <- data.table::setDF(out)
   return(out)
 }
 
