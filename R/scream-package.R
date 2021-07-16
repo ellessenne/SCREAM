@@ -6,7 +6,7 @@
 #' @name SCREAM
 #' @docType package
 #' @author Alessandro Gasparini (alessandro.gasparini@@ki.se)
-#' @import comorbidity data.table lme4 mvtnorm stats usethis
+#' @import comorbidity data.table lme4 mvtnorm stats stringi usethis
 #' @importFrom data.table :=
 #'
 # Quiets concerns of R CMD check re: variable names used internally

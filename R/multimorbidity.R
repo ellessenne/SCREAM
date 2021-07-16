@@ -18,7 +18,7 @@
 #' @examples
 #' data("icd10", package = "SCREAM")
 #' multimorbidity(
-#'   data = icd10,
+#'   data = icd10[icd10$id %in% seq(5), ],
 #'   id = "id",
 #'   code = "code",
 #'   date = "date",
@@ -64,7 +64,7 @@ multimorbidity <- function(data, id, code, date, index_date, verbose = FALSE) {
   mv <- c(id, index_date)
   safetydf <- data[, ..mv]
   safetydf <- unique(safetydf)
-  data <- data[grepl(pattern = allc, x = code), ]
+  data <- data[stringi::stri_detect_regex(str = code, pattern = allc), ]
   data <- merge(data, safetydf, all.y = TRUE, allow.cartesian = TRUE, by = c(id, index_date))
   data.table::set(data, which(is.na(data[[code]])), code, ".NOTACODE!")
   data[[date]][is.na(data[[date]])] <- data[[index_date]][is.na(data[[date]])]
@@ -93,7 +93,7 @@ multimorbidity <- function(data, id, code, date, index_date, verbose = FALSE) {
   ### Apply all regex
   for (k in seq_along(.multimorbidity_codes())) {
     cds <- .collapse_codes(x = .multimorbidity_codes()[[k]])
-    data[, (names(.multimorbidity_codes())[k]) := grepl(pattern = cds, x = code)]
+    data[, (names(.multimorbidity_codes())[k]) := stringi::stri_detect_regex(str = code, pattern = cds)]
     if (verbose) {
       if (names(.multimorbidity_codes())[k] == "cirrhosis1") {
       } else if (names(.multimorbidity_codes())[k] == "cirrhosis2") {

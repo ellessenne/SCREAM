@@ -28,7 +28,7 @@ Calculate 30 morbidity domains corresponding to chronic conditions, according to
 \examples{
 data("icd10", package = "SCREAM")
 multimorbidity(
-  data = icd10,
+  data = icd10[icd10$id \%in\% seq(5), ],
   id = "id",
   code = "code",
   date = "date",
