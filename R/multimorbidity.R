@@ -106,7 +106,9 @@ multimorbidity <- function(data, id, code, date, index_date, verbose = FALSE) {
 
   ### Summarise by 'id'
   out <- lapply(X = names(.multimorbidity_codes()), FUN = function(n) {
-    data[, stats::setNames(list(sum(get(n))), n), by = id]
+    # Use the following line instead to count the number of matches:
+    # data[, stats::setNames(list(sum(get(n))), n), by = id]
+    data[, stats::setNames(list(as.numeric(sum(get(n)) > 0)), n), by = id]
   })
   out <- Reduce(function(...) merge(..., all = T, by = id), out)
   data.table::setorderv(out, cols = id)
@@ -258,43 +260,6 @@ multimorbidity <- function(data, id, code, date, index_date, verbose = FALSE) {
     schizofrenia = TRUE,
     severe_constipation = 2,
     stroke = TRUE
-  )
-}
-
-#' @keywords internal
-.multimorbidity_algorithm <- function() {
-  list(
-    alcohol_misuse = list(hospitalisations = 1, claims = 2, accs = NA, years = 2),
-    asthma = list(hospitalisations = 1, claims = NA, accs = 3, years = 2),
-    afib = list(hospitalisations = 1, claims = 2, accs = NA, years = 2),
-    cancer_lymphoma = list(hospitalisations = 1, claims = 2, accs = NA, years = 2),
-    cancer_metastatic = list(hospitalisations = 1, claims = 2, accs = NA, years = 2),
-    cancer_nonmetastatic = list(hospitalisations = 1, claims = 2, accs = NA, years = 2),
-    chf = list(hospitalisations = 1, claims = 2, accs = NA, years = 2),
-    ckd = list(hospitalisations = 1, claims = 3, accs = NA, years = 1),
-    cpain = list(hospitalisations = 2, claims = 2, accs = 2, years = 1 / 12),
-    cpd = list(hospitalisations = 1, claims = 2, accs = NA, years = 2),
-    cvhepatitis = list(hospitalisations = 2, claims = 2, accs = 2, years = 6 / 12),
-    cirrhosis1 = list(hospitalisations = 1, claims = 1, accs = 1, years = NA),
-    cirrhosis2 = list(hospitalisations = 1, claims = 1, accs = 1, years = NA),
-    dementia = list(hospitalisations = 1, claims = 2, accs = NA, years = 2),
-    depression = list(hospitalisations = 1, claims = 2, accs = NA, years = 2),
-    diabetes = list(hospitalisations = 1, claims = 2, accs = NA, years = 2),
-    epilepsy = list(hospitalisations = 1, claims = 2, accs = 1, years = 2),
-    hypertension = list(hospitalisations = 1, claims = 2, accs = NA, years = 2),
-    hypothyroidism = list(hospitalisations = 1, claims = 2, accs = NA, years = 2),
-    ibd = list(hospitalisations = 2, claims = 2, accs = NA, years = 3),
-    ibs = list(hospitalisations = 1, claims = 2, accs = NA, years = 2),
-    multiple_sclerosis = list(hospitalisations = 2, claims = 2, accs = NA, years = 3),
-    mi = list(hospitalisations = 1, claims = NA, accs = NA, years = NA),
-    parkinson = list(hospitalisations = 1, claims = 1, accs = NA, years = NA),
-    pud = list(hospitalisations = 1, claims = 2, accs = NA, years = 2),
-    pvd = list(hospitalisations = 1, claims = 1, accs = 1, years = NA),
-    psoriasis = list(hospitalisations = 1, claims = 1, accs = NA, years = NA),
-    rheum_artritis = list(hospitalisations = 1, claims = 2, accs = NA, years = 2),
-    schizofrenia = list(hospitalisations = 1, claims = 2, accs = NA, years = 2),
-    severe_constipation = list(hospitalisations = 1, claims = 2, accs = NA, years = 2),
-    stroke = list(hospitalisations = 1, claims = 1, accs = 1, years = NA)
   )
 }
 
