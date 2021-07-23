@@ -74,20 +74,21 @@ multimorbidity <- function(data, id, code, date, index_date, verbose = FALSE) {
   if (verbose) usethis::ui_done("Subset only relevant codes...")
 
   ### Apply permanence of codes
-  idx <- data[[date]] <= data[[index_date]]
-  data <- data[idx, ]
-  data[, ...yd := (index_date) - (date)]
-  data[, ...yd := as.numeric(...yd) / 365.242]
-  data[, ...target := NA]
+  .idx <- data[[date]] <= data[[index_date]]
+  data <- data[.idx]
+  .yd <- data[[index_date]] - data[[date]]
+  data[, .yd := .yd]
+  data[, .yd := as.numeric(.yd) / 365.242]
+  data[, .target := NA]
   for (k in seq_along(.multimorbidity_codes())) {
     if (!isTRUE(.multimorbidity_permanent()[[k]])) {
       idx <- grep(pattern = .collapse_codes(x = .multimorbidity_codes()[[k]]), x = data[[code]])
-      data$...target[idx] <- .multimorbidity_permanent()[[k]]
+      data$.target[idx] <- .multimorbidity_permanent()[[k]]
     }
   }
-  data <- data[is.na(...target) | ...yd <= ...target]
-  data[, ...yd := NULL]
-  data[, ...target := NULL]
+  data <- data[is.na(.target) | .yd <= .target]
+  data[, .yd := NULL]
+  data[, .target := NULL]
   data <- merge(data, safetydf, all.y = TRUE, allow.cartesian = TRUE, by = c(id, index_date))
   data.table::set(data, which(is.na(data[[code]])), code, ".NOTACODE!")
   data[[date]][is.na(data[[date]])] <- data[[index_date]][is.na(data[[date]])]
