@@ -74,7 +74,8 @@ multimorbidity <- function(data, id, code, date, index_date, verbose = FALSE) {
   if (verbose) usethis::ui_done("Subset only relevant codes...")
 
   ### Apply permanence of codes
-  data <- data[(date) <= (index_date), ]
+  idx <- data[[date]] <= data[[index_date]]
+  data <- data[idx, ]
   data[, ...yd := (index_date) - (date)]
   data[, ...yd := as.numeric(...yd) / 365.242]
   data[, ...target := NA]
