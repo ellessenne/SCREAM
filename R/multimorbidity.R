@@ -42,6 +42,9 @@ multimorbidity <- function(data, id, code, date, index_date, verbose = FALSE) {
   checkmate::assert_subset(x = code, choices = names(data), add = arg_checks)
   checkmate::assert_subset(x = date, choices = names(data), add = arg_checks)
   checkmate::assert_subset(x = index_date, choices = names(data), add = arg_checks)
+  # 'date', 'index_date' must be actual dates
+  checkmate::assert_date(x = data[[date]], add = arg_checks)
+  checkmate::assert_date(x = data[[index_date]], add = arg_checks)
   # Report if there are any errors
   if (!arg_checks$isEmpty()) checkmate::reportAssertions(arg_checks)
 
