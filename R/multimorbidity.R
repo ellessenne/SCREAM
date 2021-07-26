@@ -7,6 +7,8 @@
 #' @param code Name of the column identifying ICD-10 codes in `data`.
 #' @param date Name of the column identifying dates at which codes are recorded in `data`.
 #' @param index_date Name of the column identifying index date in `data`.
+#' @param combine_cirrhosis Combine the two conditions to define presence of cirrhosis (denoted with `'cirrhosis1'` and `'cirrhosis2'`) into a single column (named `'cirrhosis'`)?
+#' Defaults to `TRUE`.
 #' @param verbose Print out completed steps, which might be useful with big datasets to track progress.
 #'
 #' @return A dataset with a row per individual.
@@ -25,7 +27,7 @@
 #'   index_date = "index_date",
 #'   verbose = TRUE
 #' )
-multimorbidity <- function(data, id, code, date, index_date, verbose = FALSE) {
+multimorbidity <- function(data, id, code, date, index_date, combine_cirrhosis = TRUE, verbose = FALSE) {
   ### Check arguments
   arg_checks <- checkmate::makeAssertCollection()
   # x must be a data.frame (or a data.table)
@@ -35,7 +37,8 @@ multimorbidity <- function(data, id, code, date, index_date, verbose = FALSE) {
   checkmate::assert_string(x = code, add = arg_checks)
   checkmate::assert_string(x = date, add = arg_checks)
   checkmate::assert_string(x = index_date, add = arg_checks)
-  # verbose must be a boolean
+  # combine_cirrhosis, verbose must be a boolean
+  checkmate::assert_logical(x = combine_cirrhosis, len = 1, add = arg_checks)
   checkmate::assert_logical(x = verbose, len = 1, add = arg_checks)
   # id, code, date, index_date must be in x
   checkmate::assert_subset(x = id, choices = names(data), add = arg_checks)
@@ -150,6 +153,15 @@ multimorbidity <- function(data, id, code, date, index_date, verbose = FALSE) {
   out[, ibs := ibs * (1 - excl$ibs)]
   out[, severe_constipation := severe_constipation * (1 - excl$severe_constipation)]
   if (verbose) usethis::ui_done("Applied exclusions...")
+
+  # Finally, combine 'cirrhosis1' and 'cirrhosis2' before returning (if combine_cirrhosis = TRUE)
+  if (combine_cirrhosis) {
+    out[, cirrhosis := pmin(cirrhosis1, cirrhosis2)]
+    out[, cirrhosis1 := NULL]
+    out[, cirrhosis2 := NULL]
+    mv <- c(id, .multimorbidity_order())
+    out <- out[, ..mv]
+  }
 
   ### Return
   if (verbose) usethis::ui_done("Done!")
@@ -272,6 +284,42 @@ multimorbidity <- function(data, id, code, date, index_date, verbose = FALSE) {
     schizofrenia = 2,
     severe_constipation = 2,
     stroke = NULL
+  )
+}
+
+#' @keywords internal
+.multimorbidity_order <- function() {
+  c(
+    "alcohol_misuse",
+    "asthma",
+    "afib",
+    "cancer_lymphoma",
+    "cancer_metastatic",
+    "cancer_nonmetastatic",
+    "chf",
+    "ckd",
+    "cpain",
+    "cpd",
+    "cvhepatitis",
+    "cirrhosis",
+    "dementia",
+    "depression",
+    "diabetes",
+    "epilepsy",
+    "hypertension",
+    "hypothyroidism",
+    "ibd",
+    "ibs",
+    "multiple_sclerosis",
+    "mi",
+    "parkinson",
+    "pud",
+    "pvd",
+    "psoriasis",
+    "rheum_artritis",
+    "schizofrenia",
+    "severe_constipation",
+    "stroke"
   )
 }
 

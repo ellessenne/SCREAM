@@ -10,7 +10,7 @@ for (c in seq_along(.multimorbidity_years())) {
     } else {
       tmp <- data.frame(id = 1, code = .loc[i], index_date = index_date, date = index_date - 400 * .multimorbidity_years()[[c]])
     }
-    out <- multimorbidity(data = tmp, id = "id", code = "code", date = "date", index_date = "index_date")
+    out <- multimorbidity(data = tmp, id = "id", code = "code", date = "date", index_date = "index_date", combine_cirrhosis = FALSE)
     if (is.null(.multimorbidity_years()[[c]])) {
       testthat::expect_equal(object = out[[.condition]], expected = 1)
     } else {
@@ -19,7 +19,7 @@ for (c in seq_along(.multimorbidity_years())) {
     # Then, permanent codes within the time range are still counted
     index_date <- sample(x = seq(as.Date("2000-01-01"), as.Date("2020-12-31"), by = 1), size = 1)
     tmp <- data.frame(id = 1, code = .loc[i], index_date = index_date, date = index_date - 1)
-    out <- multimorbidity(data = tmp, id = "id", code = "code", date = "date", index_date = "index_date")
+    out <- multimorbidity(data = tmp, id = "id", code = "code", date = "date", index_date = "index_date", combine_cirrhosis = FALSE)
     testthat::expect_equal(object = out[[.condition]], expected = 1)
   }
 }

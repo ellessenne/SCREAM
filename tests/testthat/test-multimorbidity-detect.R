@@ -2,7 +2,7 @@
 for (mi in seq_along(.multimorbidity_codes())) {
   for (c in .multimorbidity_codes()[[mi]]) {
     df <- data.frame(id = 1, index_date = Sys.Date(), date = Sys.Date() - 1, code = c)
-    out <- multimorbidity(data = df, id = "id", code = "code", date = "date", index_date = "index_date")
+    out <- multimorbidity(data = df, id = "id", code = "code", date = "date", index_date = "index_date", combine_cirrhosis = FALSE)
     w <- names(.multimorbidity_codes())[mi]
     testthat::expect_equal(object = out[[w]], expected = 1)
   }
@@ -26,7 +26,7 @@ for (mi in seq_along(.multimorbidity_codes())) {
     df[[.index_date]] <- Sys.Date()
     df[[.date]] <- Sys.Date() - 1
     df[[.code]] <- c
-    out <- multimorbidity(data = df, id = .id, code = .code, date = .date, index_date = .index_date)
+    out <- multimorbidity(data = df, id = .id, code = .code, date = .date, index_date = .index_date, combine_cirrhosis = FALSE)
     w <- names(.multimorbidity_codes())[mi]
     testthat::expect_equal(object = out[[w]], expected = 1)
   }

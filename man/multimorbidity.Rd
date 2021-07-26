@@ -4,7 +4,15 @@
 \alias{multimorbidity}
 \title{Calculate multimorbidity domains}
 \usage{
-multimorbidity(data, id, code, date, index_date, verbose = FALSE)
+multimorbidity(
+  data,
+  id,
+  code,
+  date,
+  index_date,
+  combine_cirrhosis = TRUE,
+  verbose = FALSE
+)
 }
 \arguments{
 \item{data}{Dataset used for data input. Must be in long format and contain a column with subject IDs, ICD-10 codes, dates at which each code was recorded, and an index date at which the conditions are calculated.}
@@ -16,6 +24,9 @@ multimorbidity(data, id, code, date, index_date, verbose = FALSE)
 \item{date}{Name of the column identifying dates at which codes are recorded in \code{data}.}
 
 \item{index_date}{Name of the column identifying index date in \code{data}.}
+
+\item{combine_cirrhosis}{Combine the two conditions to define presence of cirrhosis (denoted with \code{'cirrhosis1'} and \code{'cirrhosis2'}) into a single column (named \code{'cirrhosis'})?
+Defaults to \code{TRUE}.}
 
 \item{verbose}{Print out completed steps, which might be useful with big datasets to track progress.}
 }
