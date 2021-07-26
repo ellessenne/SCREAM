@@ -67,7 +67,8 @@ multimorbidity <- function(data, id, code, date, index_date, verbose = FALSE) {
   mv <- c(id, index_date)
   safetydf <- data[, ..mv]
   safetydf <- unique(safetydf)
-  data <- data[stringi::stri_detect_regex(str = code, pattern = allc), ]
+  idx <- stringi::stri_detect_regex(str = data[[code]], pattern = allc)
+  data <- data[idx, ]
   data <- merge(data, safetydf, all.y = TRUE, allow.cartesian = TRUE, by = c(id, index_date))
   data.table::set(data, which(is.na(data[[code]])), code, ".NOTACODE!")
   data[[date]][is.na(data[[date]])] <- data[[index_date]][is.na(data[[date]])]
@@ -81,9 +82,9 @@ multimorbidity <- function(data, id, code, date, index_date, verbose = FALSE) {
   data[, .yd := as.numeric(.yd) / 365.242]
   data[, .target := NA]
   for (k in seq_along(.multimorbidity_codes())) {
-    if (!isTRUE(.multimorbidity_permanent()[[k]])) {
+    if (!is.null(.multimorbidity_years()[[k]])) {
       idx <- grep(pattern = .collapse_codes(x = .multimorbidity_codes()[[k]]), x = data[[code]])
-      data$.target[idx] <- .multimorbidity_permanent()[[k]]
+      data$.target[idx] <- .multimorbidity_years()[[k]]
     }
   }
   data <- data[is.na(.target) | .yd <= .target]
@@ -101,7 +102,8 @@ multimorbidity <- function(data, id, code, date, index_date, verbose = FALSE) {
   ### Apply all regex
   for (k in seq_along(.multimorbidity_codes())) {
     cds <- .collapse_codes(x = .multimorbidity_codes()[[k]])
-    data[, (names(.multimorbidity_codes())[k]) := stringi::stri_detect_regex(str = code, pattern = cds)]
+    res <- stringi::stri_detect_regex(str = data[[code]], pattern = cds)
+    data[, (names(.multimorbidity_codes())[k]) := res]
     if (verbose) {
       if (names(.multimorbidity_codes())[k] == "cirrhosis1") {
       } else if (names(.multimorbidity_codes())[k] == "cirrhosis2") {
@@ -127,7 +129,8 @@ multimorbidity <- function(data, id, code, date, index_date, verbose = FALSE) {
   for (k in seq_along(.multimorbidity_exclusions())) {
     if (!is.null(.multimorbidity_exclusions()[[k]])) {
       cds <- .collapse_codes(x = .multimorbidity_exclusions()[[k]])
-      data[, (names(.multimorbidity_codes())[k]) := grepl(pattern = cds, x = code)]
+      res <- grepl(pattern = cds, x = data[[code]])
+      data[, (names(.multimorbidity_codes())[k]) := res]
     }
   }
   excl <- purrr::map(.x = names(.multimorbidity_exclusions()), .f = function(n) {
@@ -236,39 +239,39 @@ multimorbidity <- function(data, id, code, date, index_date, verbose = FALSE) {
 }
 
 #' @keywords internal
-.multimorbidity_permanent <- function() {
+.multimorbidity_years <- function() {
   list(
-    alcohol_misuse = TRUE,
-    asthma = TRUE,
-    afib = TRUE,
-    cancer_lymphoma = 5,
-    cancer_metastatic = 5,
-    cancer_nonmetastatic = 5,
-    chf = TRUE,
-    ckd = TRUE,
-    cpain = 2,
-    cpd = TRUE,
-    cvhepatitis = TRUE,
-    cirrhosis1 = TRUE,
-    cirrhosis2 = TRUE,
-    dementia = TRUE,
+    alcohol_misuse = 2,
+    asthma = 2,
+    afib = 2,
+    cancer_lymphoma = 2,
+    cancer_metastatic = 2,
+    cancer_nonmetastatic = 2,
+    chf = 2,
+    ckd = 1,
+    cpain = 30 / 365.242, # 30 days
+    cpd = 2,
+    cvhepatitis = 6 / 12, # 6 months
+    cirrhosis1 = NULL,
+    cirrhosis2 = NULL,
+    dementia = 2,
     depression = 2,
-    diabetes = TRUE,
-    epilepsy = TRUE,
-    hypertension = TRUE,
-    hypothyroidism = TRUE,
-    ibd = TRUE,
-    ibs = TRUE,
-    multiple_sclerosis = TRUE,
-    mi = TRUE,
-    parkinson = TRUE,
+    diabetes = 2,
+    epilepsy = 2,
+    hypertension = 2,
+    hypothyroidism = 2,
+    ibd = 3,
+    ibs = 2,
+    multiple_sclerosis = 3,
+    mi = NULL,
+    parkinson = NULL,
     pud = 2,
-    pvd = TRUE,
-    psoriasis = TRUE,
-    rheum_artritis = TRUE,
-    schizofrenia = TRUE,
+    pvd = NULL,
+    psoriasis = NULL,
+    rheum_artritis = 2,
+    schizofrenia = 2,
     severe_constipation = 2,
-    stroke = TRUE
+    stroke = NULL
   )
 }
 
