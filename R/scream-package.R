@@ -9,5 +9,9 @@
 #' @import comorbidity data.table lme4 mvtnorm stats stringi usethis
 #' @importFrom data.table :=
 #'
+
 # Quiets concerns of R CMD check re: variable names used internally
-if (getRversion() >= "2.15.1") utils::globalVariables(c("..mv", ".yd", ".target", "ibs", "severe_constipation"))
+if (getRversion() >= "2.15.1") utils::globalVariables(c("..mv", ".yd", ".target", "ibs", "severe_constipation", "cirrhosis", "cirrhosis1", "cirrhosis2"))
+
+#' @keywords internal
+.datatable.aware <- TRUE
