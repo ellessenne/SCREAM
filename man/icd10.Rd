@@ -5,15 +5,13 @@
 \alias{icd10}
 \title{Example of a dataset with ICD-10 codes}
 \format{
-A data frame with 123,772 rows and 7 variables, for 5,000 subjects. Included variables are:
+A list with two simulated data frames of ICD-10 codes for 3,000 subjects, one with hospitalisation codes, and one with inpatient and outpatient claims.
+Each data set includes the following variables:
 \itemize{
 \item \code{id} Subject ID.
 \item \code{date} Date corresponding to each code.
 \item \code{index_date} Index date (used e.g. to calculate multimorbidity at that specific point in time).
 \item \code{code} ICD-10 code.
-\item \code{origin} Origin of each ICD-10 code, with \code{origin = 1} denoting hospital care, \code{origin = 2} denoting secondary care, and \code{origin = 3} denoting primary care.
-\item \code{n} Sequential number for each observation.
-\item \code{N} Total number of observations per subject.
 }
 }
 \usage{
