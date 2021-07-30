@@ -2,14 +2,14 @@
 #'
 #' @description Calculate 30 morbidity domains corresponding to chronic conditions, according to the definition of Tonelli et al. (see reference below).
 #'
-#' @param data Dataset used for data input. Must be in long format and contain a column with subject IDs, ICD-10 codes, dates at which each code was recorded, and an index date at which the conditions are calculated.
+#' @param data_hospitalisations Dataset used for data input, containing hospitalisation codes (see the algorithm in the paper by Tonelli et al.).
+#' Must be in long format and contain a column with subject IDs, ICD-10 codes, dates at which each code was recorded, and an index date at which the conditions are calculated.
+#' @param data_claims Dataset used for data input, containing inpatient and outpatient codes (see the algorithm in the paper by Tonelli et al.).
+#' Must be in long format and contain a column with subject IDs, ICD-10 codes, dates at which each code was recorded, and an index date at which the conditions are calculated.
 #' @param id Name of the column identifying subject IDs in `data`.
 #' @param code Name of the column identifying ICD-10 codes in `data`.
 #' @param date Name of the column identifying dates at which codes are recorded in `data`.
 #' @param index_date Name of the column identifying index date in `data`.
-#' @param combine_cirrhosis Combine the two conditions to define presence of cirrhosis (denoted with `'cirrhosis1'` and `'cirrhosis2'`) into a single column (named `'cirrhosis'`)?
-#' Defaults to `TRUE`.
-#' @param verbose Print out completed steps, which might be useful with big datasets to track progress.
 #'
 #' @return A dataset with a row per individual.
 #'
@@ -20,40 +20,93 @@
 #' @examples
 #' data("icd10", package = "SCREAM")
 #' multimorbidity(
-#'   data = icd10[icd10$id %in% seq(5), ],
+#'   data_hospitalisations = icd10$hospitalisations,
+#'   data_claims = icd10$claims,
 #'   id = "id",
 #'   code = "code",
 #'   date = "date",
-#'   index_date = "index_date",
-#'   verbose = TRUE
+#'   index_date = "index_date"
 #' )
-multimorbidity <- function(data, id, code, date, index_date, combine_cirrhosis = TRUE, verbose = FALSE) {
+multimorbidity <- function(data_hospitalisations = NULL, data_claims = NULL, id, code, date, index_date, combine_cirrhosis = TRUE) {
+
   ### Check arguments
   arg_checks <- checkmate::makeAssertCollection()
-  # x must be a data.frame (or a data.table)
-  checkmate::assert_true(x = all(class(data) %in% c("data.frame", "data.table", "tbl", "tbl_df")), add = arg_checks)
+  # 'data_inpatient' and 'data_outpatient' must be data.frames (or analogous)
+  checkmate::assert_true(x = inherits(x = data_hospitalisations, what = c("data.frame", "data.table", "tbl", "tbl_df")), add = arg_checks)
+  checkmate::assert_true(x = inherits(x = data_claims, what = c("data.frame", "data.table", "tbl", "tbl_df")), add = arg_checks)
   # id, code, date, index_date must be a single string value
   checkmate::assert_string(x = id, add = arg_checks)
   checkmate::assert_string(x = code, add = arg_checks)
   checkmate::assert_string(x = date, add = arg_checks)
   checkmate::assert_string(x = index_date, add = arg_checks)
-  # combine_cirrhosis, verbose must be a boolean
-  checkmate::assert_logical(x = combine_cirrhosis, len = 1, add = arg_checks)
-  checkmate::assert_logical(x = verbose, len = 1, add = arg_checks)
-  # id, code, date, index_date must be in x
-  checkmate::assert_subset(x = id, choices = names(data), add = arg_checks)
-  checkmate::assert_subset(x = code, choices = names(data), add = arg_checks)
-  checkmate::assert_subset(x = date, choices = names(data), add = arg_checks)
-  checkmate::assert_subset(x = index_date, choices = names(data), add = arg_checks)
+  # combine_cirrhosis must be a boolean
+  checkmate::assert_logical(x = combine_cirrhosis, add = arg_checks)
+  checkmate::assert_string(x = index_date, add = arg_checks)
+  # id, code, date, index_date must be in data_inpatient and data_outpatient
+  checkmate::assert_subset(x = id, choices = names(data_hospitalisations), add = arg_checks)
+  checkmate::assert_subset(x = code, choices = names(data_hospitalisations), add = arg_checks)
+  checkmate::assert_subset(x = date, choices = names(data_hospitalisations), add = arg_checks)
+  checkmate::assert_subset(x = index_date, choices = names(data_hospitalisations), add = arg_checks)
+  checkmate::assert_subset(x = id, choices = names(data_claims), add = arg_checks)
+  checkmate::assert_subset(x = code, choices = names(data_claims), add = arg_checks)
+  checkmate::assert_subset(x = date, choices = names(data_claims), add = arg_checks)
+  checkmate::assert_subset(x = index_date, choices = names(data_claims), add = arg_checks)
   # 'date', 'index_date' must be actual dates
-  checkmate::assert_date(x = data[[date]], add = arg_checks)
-  checkmate::assert_date(x = data[[index_date]], add = arg_checks)
+  checkmate::assert_date(x = data_hospitalisations[[date]], add = arg_checks)
+  checkmate::assert_date(x = data_hospitalisations[[index_date]], add = arg_checks)
+  checkmate::assert_date(x = data_claims[[date]], add = arg_checks)
+  checkmate::assert_date(x = data_claims[[index_date]], add = arg_checks)
   # Report if there are any errors
   if (!arg_checks$isEmpty()) checkmate::reportAssertions(arg_checks)
 
+  ### First, calculate conditions for hospitalisation data
+  out_hospitalisations <- .multimorbidity_compute(data_hospitalisations, id, code, date, index_date)
+
+  ### Then, for all claims data
+  out_claims <- .multimorbidity_compute(data_claims, id, code, date, index_date)
+
+  ### Augment with zeros if some IDs are missing in either...
+  IDdf <- data.table()
+  IDdf[, (id) := unique(c(data_hospitalisations[[id]], data_claims[[id]]))]
+  out_hospitalisations <- merge(out_hospitalisations, IDdf, all.y = TRUE, allow.cartesian = TRUE, by = id)
+  out_hospitalisations[is.na(out_hospitalisations)] <- 0
+  out_claims <- merge(out_claims, IDdf, all.y = TRUE, allow.cartesian = TRUE, by = id)
+  out_claims[is.na(out_claims)] <- 0
+
+  ### Sanity check here, just in case
+  .multimorbidity_sanity(hospitalisations = out_hospitalisations, claims = out_claims)
+
+  ### Now, combine the two
+  out <- data.table()
+  out[, (id) := out_hospitalisations[[id]]]
+  for (w in names(.multimorbidity_howmany())) {
+    doing <- .multimorbidity_howmany()[[w]]
+    if (is.na(doing["claims"])) {
+      res <- ifelse(out_hospitalisations[[w]] >= doing["hospitalisations"], 1, 0)
+    } else {
+      res <- ifelse(out_hospitalisations[[w]] >= doing["hospitalisations"] | out_claims[[w]] >= doing["claims"], 1, 0)
+    }
+    out[, (w) := res]
+  }
+
+  # Finally, combine 'cirrhosis1' and 'cirrhosis2' before returning (if so)
+  if (combine_cirrhosis) {
+    out[, cirrhosis := pmin(cirrhosis1, cirrhosis2)]
+    out[, cirrhosis1 := NULL]
+    out[, cirrhosis2 := NULL]
+    mv <- c(id, .multimorbidity_order())
+    out <- out[, ..mv]
+  }
+
+  ### Return
+  out <- data.table::setDF(out)
+  return(out)
+}
+
+#' @keywords internal
+.multimorbidity_compute <- function(data, id, code, date, index_date) {
   ### Tidy codes
   data <- comorbidity:::.tidy(x = data, code = code)
-  if (verbose) usethis::ui_done("Tidied codes...")
 
   ### Turn x into a DT
   data.table::setDT(data)
@@ -75,7 +128,6 @@ multimorbidity <- function(data, id, code, date, index_date, combine_cirrhosis =
   data <- merge(data, safetydf, all.y = TRUE, allow.cartesian = TRUE, by = c(id, index_date))
   data.table::set(data, which(is.na(data[[code]])), code, ".NOTACODE!")
   data[[date]][is.na(data[[date]])] <- data[[index_date]][is.na(data[[date]])]
-  if (verbose) usethis::ui_done("Subset only relevant codes...")
 
   ### Apply permanence of codes
   .idx <- data[[date]] <= data[[index_date]]
@@ -96,7 +148,6 @@ multimorbidity <- function(data, id, code, date, index_date, combine_cirrhosis =
   data <- merge(data, safetydf, all.y = TRUE, allow.cartesian = TRUE, by = c(id, index_date))
   data.table::set(data, which(is.na(data[[code]])), code, ".NOTACODE!")
   data[[date]][is.na(data[[date]])] <- data[[index_date]][is.na(data[[date]])]
-  if (verbose) usethis::ui_done("Applied permanence of codes...")
 
   ### Subset only 'id' and 'code' columns
   mv <- c(id, code)
@@ -107,21 +158,13 @@ multimorbidity <- function(data, id, code, date, index_date, combine_cirrhosis =
     cds <- .collapse_codes(x = .multimorbidity_codes()[[k]])
     res <- stringi::stri_detect_regex(str = data[[code]], pattern = cds)
     data[, (names(.multimorbidity_codes())[k]) := res]
-    if (verbose) {
-      if (names(.multimorbidity_codes())[k] == "cirrhosis1") {
-      } else if (names(.multimorbidity_codes())[k] == "cirrhosis2") {
-        usethis::ui_done("Done with cirrhosis...")
-      } else {
-        usethis::ui_done("Done with {names(.multimorbidity_codes())[k]}...")
-      }
-    }
   }
 
   ### Summarise by 'id'
   out <- purrr::map(.x = names(.multimorbidity_codes()), .f = function(n) {
-    # Use the following line instead to count the number of matches:
-    # data[, stats::setNames(list(sum(get(n))), n), by = id]
-    data[, stats::setNames(list(as.numeric(sum(get(n)) > 0)), n), by = id]
+    data[, stats::setNames(list(sum(get(n))), n), by = id]
+    # Use the following line instead to get one-zeros instead of counting the number of matches:
+    # data[, stats::setNames(list(as.numeric(sum(get(n)) > 0)), n), by = id]
   })
   out <- purrr::reduce(.x = out, .f = merge, all = TRUE, by = id)
   data.table::setorderv(out, cols = id)
@@ -152,21 +195,18 @@ multimorbidity <- function(data, id, code, date, index_date, combine_cirrhosis =
   # ->
   out[, ibs := ibs * (1 - excl$ibs)]
   out[, severe_constipation := severe_constipation * (1 - excl$severe_constipation)]
-  if (verbose) usethis::ui_done("Applied exclusions...")
-
-  # Finally, combine 'cirrhosis1' and 'cirrhosis2' before returning (if combine_cirrhosis = TRUE)
-  if (combine_cirrhosis) {
-    out[, cirrhosis := pmin(cirrhosis1, cirrhosis2)]
-    out[, cirrhosis1 := NULL]
-    out[, cirrhosis2 := NULL]
-    mv <- c(id, .multimorbidity_order())
-    out <- out[, ..mv]
-  }
 
   ### Return
-  if (verbose) usethis::ui_done("Done!")
   out <- data.table::setDF(out)
   return(out)
+}
+
+#' @keywords internal
+.multimorbidity_sanity <- function(hospitalisations, claims) {
+  .msg <- "An unexpected error occurred. Please file an issue at https://github.com/ellessenne/SCREAM/issues, including a reproducible example (https://github.com/ellessenne/SCREAM/issues)."
+  if (any(names(hospitalisations) != names(claims))) stop(.msg, call. = FALSE)
+  if (ncol(hospitalisations) != ncol(claims)) stop(.msg, call. = FALSE)
+  if (nrow(hospitalisations) != nrow(claims)) stop(.msg, call. = FALSE)
 }
 
 #' @keywords internal
@@ -322,6 +362,44 @@ multimorbidity <- function(data, id, code, date, index_date, combine_cirrhosis =
     "stroke"
   )
 }
+
+#' @keywords internal
+.multimorbidity_howmany <- function() {
+  list(
+    alcohol_misuse = c("hospitalisations" = 1, "claims" = 2),
+    asthma = c("hospitalisations" = 1, "claims" = NA),
+    afib = c("hospitalisations" = 1, "claims" = 2),
+    cancer_lymphoma = c("hospitalisations" = 1, "claims" = 2),
+    cancer_metastatic = c("hospitalisations" = 1, "claims" = 2),
+    cancer_nonmetastatic = c("hospitalisations" = 1, "claims" = 2),
+    chf = c("hospitalisations" = 1, "claims" = 2),
+    ckd = c("hospitalisations" = 1, "claims" = 3),
+    cpain = c("hospitalisations" = 2, "claims" = 2),
+    cpd = c("hospitalisations" = 1, "claims" = 2),
+    cvhepatitis = c("hospitalisations" = 2, "claims" = 2),
+    cirrhosis1 = c("hospitalisations" = 1, "claims" = 2),
+    cirrhosis2 = c("hospitalisations" = 1, "claims" = 2),
+    dementia = c("hospitalisations" = 1, "claims" = 2),
+    depression = c("hospitalisations" = 1, "claims" = 2),
+    diabetes = c("hospitalisations" = 1, "claims" = 2),
+    epilepsy = c("hospitalisations" = 1, "claims" = 2),
+    hypertension = c("hospitalisations" = 1, "claims" = 2),
+    hypothyroidism = c("hospitalisations" = 1, "claims" = 2),
+    ibd = c("hospitalisations" = 2, "claims" = 2),
+    ibs = c("hospitalisations" = 1, "claims" = 2),
+    multiple_sclerosis = c("hospitalisations" = 2, "claims" = 2),
+    mi = c("hospitalisations" = 1, "claims" = NA),
+    parkinson = c("hospitalisations" = 1, "claims" = 1),
+    pud = c("hospitalisations" = 1, "claims" = 2),
+    pvd = c("hospitalisations" = 1, "claims" = 1),
+    psoriasis = c("hospitalisations" = 1, "claims" = 1),
+    rheum_artritis = c("hospitalisations" = 1, "claims" = 2),
+    schizofrenia = c("hospitalisations" = 1, "claims" = 2),
+    severe_constipation = c("hospitalisations" = 1, "claims" = 2),
+    stroke = c("hospitalisations" = 1, "claims" = 1)
+  )
+}
+
 
 #' @keywords internal
 .collapse_codes <- function(x) paste0("^", paste(x, collapse = "|^"))
