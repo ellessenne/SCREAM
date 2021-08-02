@@ -10,7 +10,8 @@ multimorbidity(
   id,
   code,
   date,
-  index_date
+  index_date,
+  combine_cirrhosis = TRUE
 )
 }
 \arguments{
@@ -27,9 +28,12 @@ Must be in long format and contain a column with subject IDs, ICD-10 codes, date
 \item{date}{Name of the column identifying dates at which codes are recorded in \code{data}.}
 
 \item{index_date}{Name of the column identifying index date in \code{data}.}
+
+\item{combine_cirrhosis}{Cirrhosis is defined as the concurrent presence of (at least) two codes, if \code{combine_cirrhosis = TRUE} (the default) then a single column (combination of the two) is returned.
+If not, two columns are returned.}
 }
 \value{
-A dataset with a row per individual.
+A dataset with a row per individual and a column per condition.
 }
 \description{
 Calculate 30 morbidity domains corresponding to chronic conditions, according to the definition of Tonelli et al. (see reference below).

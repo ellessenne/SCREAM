@@ -10,8 +10,10 @@
 #' @param code Name of the column identifying ICD-10 codes in `data`.
 #' @param date Name of the column identifying dates at which codes are recorded in `data`.
 #' @param index_date Name of the column identifying index date in `data`.
+#' @param combine_cirrhosis Cirrhosis is defined as the concurrent presence of (at least) two codes, if `combine_cirrhosis = TRUE` (the default) then a single column (combination of the two) is returned.
+#' If not, two columns are returned.
 #'
-#' @return A dataset with a row per individual.
+#' @return A dataset with a row per individual and a column per condition.
 #'
 #' @references Tonelli, M., Wiebe, N., Fortin, M. et al. _Methods for identifying 30 chronic conditions: application to administrative data._ BMC Med Inform Decis Mak 15, 31 (2016). \doi{10.1186/s12911-015-0155-5}.
 #'
