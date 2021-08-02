@@ -5,3 +5,4 @@
 ^testing\.R$
 ^codecov\.yml$
 ^data-raw$
+^\.DS_Store$
