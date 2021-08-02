@@ -30,7 +30,6 @@
 #'   index_date = "index_date"
 #' )
 multimorbidity <- function(data_hospitalisations = NULL, data_claims = NULL, id, code, date, index_date, combine_cirrhosis = TRUE) {
-
   ### Check arguments
   arg_checks <- checkmate::makeAssertCollection()
   # 'data_inpatient' and 'data_outpatient' must be data.frames (or analogous)
@@ -62,10 +61,10 @@ multimorbidity <- function(data_hospitalisations = NULL, data_claims = NULL, id,
   if (!arg_checks$isEmpty()) checkmate::reportAssertions(arg_checks)
 
   ### First, calculate conditions for hospitalisation data
-  out_hospitalisations <- .multimorbidity_compute(data_hospitalisations, id, code, date, index_date)
+  out_hospitalisations <- .multimorbidity_compute(data_hospitalisations, id, code, date, index_date, doing_hospitalisations = TRUE)
 
   ### Then, for all claims data
-  out_claims <- .multimorbidity_compute(data_claims, id, code, date, index_date)
+  out_claims <- .multimorbidity_compute(data_claims, id, code, date, index_date, doing_hospitalisations = FALSE)
 
   ### Augment with zeros if some IDs are missing in either...
   IDdf <- data.table()
@@ -106,7 +105,7 @@ multimorbidity <- function(data_hospitalisations = NULL, data_claims = NULL, id,
 }
 
 #' @keywords internal
-.multimorbidity_compute <- function(data, id, code, date, index_date) {
+.multimorbidity_compute <- function(data, id, code, date, index_date, doing_hospitalisations) {
   ### Tidy codes
   data <- comorbidity:::.tidy(x = data, code = code)
 
@@ -126,30 +125,47 @@ multimorbidity <- function(data_hospitalisations = NULL, data_claims = NULL, id,
   safetydf <- data[, ..mv]
   safetydf <- unique(safetydf)
   idx <- stringi::stri_detect_regex(str = data[[code]], pattern = allc)
-  data <- data[idx, ]
+  data <- data[idx]
   data <- merge(data, safetydf, all.y = TRUE, allow.cartesian = TRUE, by = c(id, index_date))
   data.table::set(data, which(is.na(data[[code]])), code, ".NOTACODE!")
   data[[date]][is.na(data[[date]])] <- data[[index_date]][is.na(data[[date]])]
 
-  ### Apply permanence of codes
-  .idx <- data[[date]] <= data[[index_date]]
-  data <- data[.idx]
-  .yd <- data[[index_date]] - data[[date]]
-  data[, .yd := .yd]
-  data[, .yd := as.numeric(.yd) / 365.242]
-  data[, .target := NA]
-  for (k in seq_along(.multimorbidity_codes())) {
-    if (!is.null(.multimorbidity_years()[[k]])) {
-      idx <- grep(pattern = .collapse_codes(x = .multimorbidity_codes()[[k]]), x = data[[code]])
-      data$.target[idx] <- .multimorbidity_years()[[k]]
-    }
+  ### If doing claims, chronic pain is a different story
+  if (isFALSE(doing_hospitalisations)) {
+    idx <- stringi::stri_detect_regex(str = data[[code]], pattern = .collapse_codes(.multimorbidity_codes()[["cpain"]]))
+    data_cpain <- data[idx]
+    data.table::setorderv(x = data_cpain, cols = c(id, date))
+    data_cpain[, lag1 := shift((date), n = 1), by = (id)]
+    data_cpain[, ddiff := as.numeric((date) - lag1)]
+    data_cpain[, ok := as.numeric(!is.na(ddiff) & (ddiff >= 30))]
+    data_cpain <- data_cpain[, .(ok = sum(ok)), by = (id)]
+    data_cpain <- merge(data_cpain, safetydf, all.y = TRUE, allow.cartesian = TRUE, by = id)
+    data_cpain[, (index_date) := NULL]
+    data_cpain[, ok := ifelse(is.na(ok), 0, ok)]
+    data_cpain[, ok := as.numeric(ok > 0)]
   }
-  data <- data[is.na(.target) | .yd <= .target]
-  data[, .yd := NULL]
-  data[, .target := NULL]
-  data <- merge(data, safetydf, all.y = TRUE, allow.cartesian = TRUE, by = c(id, index_date))
-  data.table::set(data, which(is.na(data[[code]])), code, ".NOTACODE!")
-  data[[date]][is.na(data[[date]])] <- data[[index_date]][is.na(data[[date]])]
+
+  ### Apply permanence of codes (if not doing hospitalisations)
+  if (isFALSE(doing_hospitalisations)) {
+    .idx <- data[[date]] <= data[[index_date]]
+    data <- data[.idx]
+    .yd <- data[[index_date]] - data[[date]]
+    data[, .yd := .yd]
+    data[, .yd := as.numeric(.yd) / 365.242]
+    data[, .target := NA]
+    for (k in seq_along(.multimorbidity_codes())) {
+      if (!is.null(.multimorbidity_years()[[k]])) {
+        idx <- grep(pattern = .collapse_codes(x = .multimorbidity_codes()[[k]]), x = data[[code]])
+        data$.target[idx] <- .multimorbidity_years()[[k]]
+      }
+    }
+    data <- data[is.na(.target) | .yd <= .target]
+    data[, .yd := NULL]
+    data[, .target := NULL]
+    data <- merge(data, safetydf, all.y = TRUE, allow.cartesian = TRUE, by = c(id, index_date))
+    data.table::set(data, which(is.na(data[[code]])), code, ".NOTACODE!")
+    data[[date]][is.na(data[[date]])] <- data[[index_date]][is.na(data[[date]])]
+  }
 
   ### Subset only 'id' and 'code' columns
   mv <- c(id, code)
@@ -170,6 +186,12 @@ multimorbidity <- function(data_hospitalisations = NULL, data_claims = NULL, id,
   })
   out <- purrr::reduce(.x = out, .f = merge, all = TRUE, by = id)
   data.table::setorderv(out, cols = id)
+
+  ### Now, fix chronic pain
+  if (isFALSE(doing_hospitalisations)) {
+    # This turns all cpain values into zeros if there are no *at least* two codes >30 days apart
+    out[, cpain := cpain * data_cpain[["ok"]]]
+  }
 
   ### Process exclusions
   mv <- c(id, code)
@@ -303,7 +325,7 @@ multimorbidity <- function(data_hospitalisations = NULL, data_claims = NULL, id,
     cancer_nonmetastatic = 2,
     chf = 2,
     ckd = 1,
-    cpain = 30 / 365.242, # 30 days
+    cpain = NULL, # Here there's a different requirement, e.g. two or more codes at least 30 days apart
     cpd = 2,
     cvhepatitis = 6 / 12, # 6 months
     cirrhosis1 = NULL,
