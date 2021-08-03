@@ -30,6 +30,17 @@
 #'   index_date = "index_date"
 #' )
 multimorbidity <- function(data_hospitalisations = NULL, data_claims = NULL, id, code, date, index_date, combine_cirrhosis = TRUE) {
+  # library(dplyr)
+  # data("icd10", package = "SCREAM")
+  # data_hospitalisations <- icd10$hospitalisations
+  # data_claims <- icd10$claims
+  # data_hospitalisations <- rename(data_hospitalisations, lopnr = id, diagnosis = code, datum = date)
+  # data_claims <- rename(data_claims, lopnr = id, diagnosis = code, datum = date)
+  # id <- "lopnr"
+  # code <- "diagnosis"
+  # date <- "datum"
+  # index_date <- "index_date"
+
   ### Check arguments
   arg_checks <- checkmate::makeAssertCollection()
   # 'data_inpatient' and 'data_outpatient' must be data.frames (or analogous)
@@ -60,26 +71,30 @@ multimorbidity <- function(data_hospitalisations = NULL, data_claims = NULL, id,
   # Report if there are any errors
   if (!arg_checks$isEmpty()) checkmate::reportAssertions(arg_checks)
 
-  ### First, calculate conditions for hospitalisation data
-  out_hospitalisations <- .multimorbidity_compute(data_hospitalisations, id, code, date, index_date, doing_hospitalisations = TRUE)
+  ### First, prep data
+  data_hospitalisations <- .multimorbidity_prep_data(data = data_hospitalisations, id = id, code = code, date = date, index_date = index_date)
+  data_claims <- .multimorbidity_prep_data(data = data_claims, id = id, code = code, date = date, index_date = index_date)
+
+  ### Then, calculate conditions for hospitalisation data
+  out_hospitalisations <- .multimorbidity_compute(data_hospitalisations, doing_hospitalisations = TRUE)
 
   ### Then, for all claims data
-  out_claims <- .multimorbidity_compute(data_claims, id, code, date, index_date, doing_hospitalisations = FALSE)
+  out_claims <- .multimorbidity_compute(data_claims, doing_hospitalisations = FALSE)
 
   ### Augment with zeros if some IDs are missing in either...
   IDdf <- data.table()
-  IDdf[, (id) := unique(c(data_hospitalisations[[id]], data_claims[[id]]))]
-  out_hospitalisations <- merge(out_hospitalisations, IDdf, all.y = TRUE, allow.cartesian = TRUE, by = id)
-  out_hospitalisations[is.na(out_hospitalisations)] <- 0
-  out_claims <- merge(out_claims, IDdf, all.y = TRUE, allow.cartesian = TRUE, by = id)
-  out_claims[is.na(out_claims)] <- 0
+  IDdf[, id := unique(c(data_hospitalisations[["id"]], data_claims[["id"]]))]
+  out_hospitalisations <- merge(out_hospitalisations, IDdf, all.y = TRUE, allow.cartesian = TRUE, by = "id")
+  data.table::setnafill(x = out_hospitalisations, type = "const", fill = 0)
+  out_claims <- merge(out_claims, IDdf, all.y = TRUE, allow.cartesian = TRUE, by = "id")
+  data.table::setnafill(x = out_claims, type = "const", fill = 0)
 
   ### Sanity check here, just in case
   .multimorbidity_sanity(hospitalisations = out_hospitalisations, claims = out_claims)
 
   ### Now, combine the two
   out <- data.table()
-  out[, (id) := out_hospitalisations[[id]]]
+  out[, id := out_hospitalisations[["id"]]]
   for (w in names(.multimorbidity_howmany())) {
     doing <- .multimorbidity_howmany()[[w]]
     if (is.na(doing["claims"])) {
@@ -95,97 +110,102 @@ multimorbidity <- function(data_hospitalisations = NULL, data_claims = NULL, id,
     out[, cirrhosis := pmin(cirrhosis1, cirrhosis2)]
     out[, cirrhosis1 := NULL]
     out[, cirrhosis2 := NULL]
-    mv <- c(id, .multimorbidity_order())
+    mv <- c("id", .multimorbidity_order())
     out <- out[, ..mv]
   }
 
-  ### Return
+  ### Restore ID column and return
+  data.table::setnames(x = out, old = "id", new = id)
   out <- data.table::setDF(out)
   return(out)
 }
 
 #' @keywords internal
-.multimorbidity_compute <- function(data, id, code, date, index_date, doing_hospitalisations) {
+.multimorbidity_prep_data <- function(data, id, code, date, index_date) {
   ### Tidy codes
   data <- comorbidity:::.tidy(x = data, code = code)
-
   ### Turn x into a DT
   data.table::setDT(data)
+  ### Subset only relevant columns
+  mv <- c(id, code, date, index_date)
+  data <- data[, ..mv]
+  ### Assign standardised names
+  data.table::setnames(x = data, new = c("id", "code", "date", "index_date"))
+  ### Return data.table
+  return(data)
+}
 
-  ### Save a vector of IDs
-  IDs <- data[[id]]
-
+#' @keywords internal
+.multimorbidity_compute <- function(data, doing_hospitalisations) {
   ### Keep only codes that can be used somewhere
   allc <- c(.multimorbidity_codes(), .multimorbidity_exclusions())
   idx <- vapply(X = allc, FUN = function(x) !is.null(x), FUN.VALUE = logical(length = 1L))
   allc <- allc[idx]
   allc <- lapply(X = allc, FUN = .collapse_codes)
   allc <- paste(allc, collapse = "|")
-  mv <- c(id, index_date)
+  mv <- c("id", "index_date")
   safetydf <- data[, ..mv]
   safetydf <- unique(safetydf)
-  idx <- stringi::stri_detect_regex(str = data[[code]], pattern = allc)
+  idx <- stringi::stri_detect_regex(str = data[["code"]], pattern = allc)
   data <- data[idx]
-  data <- merge(data, safetydf, all.y = TRUE, allow.cartesian = TRUE, by = c(id, index_date))
-  data.table::set(data, which(is.na(data[[code]])), code, ".NOTACODE!")
-  data[[date]][is.na(data[[date]])] <- data[[index_date]][is.na(data[[date]])]
+  data <- merge(data, safetydf, all.y = TRUE, allow.cartesian = TRUE, by = c("id", "index_date"))
+  data.table::set(data, which(is.na(data[["code"]])), "code", ".NOTACODE!")
+  data[["date"]][is.na(data[["date"]])] <- data[["index_date"]][is.na(data[["date"]])]
 
   ### If doing claims, chronic pain is a different story
   if (isFALSE(doing_hospitalisations)) {
-    idx <- stringi::stri_detect_regex(str = data[[code]], pattern = .collapse_codes(.multimorbidity_codes()[["cpain"]]))
+    idx <- stringi::stri_detect_regex(str = data[["code"]], pattern = .collapse_codes(.multimorbidity_codes()[["cpain"]]))
     data_cpain <- data[idx]
-    data.table::setorderv(x = data_cpain, cols = c(id, date))
-    data_cpain[, lag1 := shift((date), n = 1), by = (id)]
-    data_cpain[, ddiff := as.numeric((date) - lag1)]
+    data.table::setorderv(x = data_cpain, cols = c("id", "date"))
+    data_cpain[, lag1 := data.table::shift(date, n = 1), by = "id"]
+    data_cpain[, ddiff := as.numeric(date - lag1)]
     data_cpain[, ok := as.numeric(!is.na(ddiff) & (ddiff >= 30))]
-    data_cpain <- data_cpain[, .(ok = sum(ok)), by = (id)]
-    data_cpain <- merge(data_cpain, safetydf, all.y = TRUE, allow.cartesian = TRUE, by = id)
-    data_cpain[, (index_date) := NULL]
+    data_cpain <- data_cpain[, .(ok = sum(ok)), by = "id"]
+    data_cpain <- merge(data_cpain, safetydf, all.y = TRUE, allow.cartesian = TRUE, by = "id")
+    data_cpain[, index_date := NULL]
     data_cpain[, ok := ifelse(is.na(ok), 0, ok)]
     data_cpain[, ok := as.numeric(ok > 0)]
   }
 
   ### Apply permanence of codes (if not doing hospitalisations)
   if (isFALSE(doing_hospitalisations)) {
-    .idx <- data[[date]] <= data[[index_date]]
-    data <- data[.idx]
-    .yd <- data[[index_date]] - data[[date]]
-    data[, .yd := .yd]
+    data <- data[date <= index_date]
+    data[, .yd := index_date - date]
     data[, .yd := as.numeric(.yd) / 365.242]
     data[, .target := NA]
     for (k in seq_along(.multimorbidity_codes())) {
       if (!is.null(.multimorbidity_years()[[k]])) {
-        idx <- grep(pattern = .collapse_codes(x = .multimorbidity_codes()[[k]]), x = data[[code]])
+        idx <- grep(pattern = .collapse_codes(x = .multimorbidity_codes()[[k]]), x = data[["code"]])
         data$.target[idx] <- .multimorbidity_years()[[k]]
       }
     }
     data <- data[is.na(.target) | .yd <= .target]
     data[, .yd := NULL]
     data[, .target := NULL]
-    data <- merge(data, safetydf, all.y = TRUE, allow.cartesian = TRUE, by = c(id, index_date))
-    data.table::set(data, which(is.na(data[[code]])), code, ".NOTACODE!")
-    data[[date]][is.na(data[[date]])] <- data[[index_date]][is.na(data[[date]])]
+    data <- merge(data, safetydf, all.y = TRUE, allow.cartesian = TRUE, by = c("id", "index_date"))
+    data.table::set(data, which(is.na(data[["code"]])), "code", ".NOTACODE!")
+    data[["date"]][is.na(data[["date"]])] <- data[["index_date"]][is.na(data[["date"]])]
   }
 
   ### Subset only 'id' and 'code' columns
-  mv <- c(id, code)
+  mv <- c("id", "code")
   data <- data[, ..mv]
 
   ### Apply all regex
   for (k in seq_along(.multimorbidity_codes())) {
     cds <- .collapse_codes(x = .multimorbidity_codes()[[k]])
-    res <- stringi::stri_detect_regex(str = data[[code]], pattern = cds)
+    res <- stringi::stri_detect_regex(str = data[["code"]], pattern = cds)
     data[, (names(.multimorbidity_codes())[k]) := res]
   }
 
   ### Summarise by 'id'
   out <- purrr::map(.x = names(.multimorbidity_codes()), .f = function(n) {
-    data[, stats::setNames(list(sum(get(n))), n), by = id]
+    data[, stats::setNames(list(sum(get(n))), n), by = "id"]
     # Use the following line instead to get one-zeros instead of counting the number of matches:
     # data[, stats::setNames(list(as.numeric(sum(get(n)) > 0)), n), by = id]
   })
-  out <- purrr::reduce(.x = out, .f = merge, all = TRUE, by = id)
-  data.table::setorderv(out, cols = id)
+  out <- purrr::reduce(.x = out, .f = merge, all = TRUE, by = "id")
+  data.table::setorderv(out, cols = "id")
 
   ### Now, fix chronic pain
   if (isFALSE(doing_hospitalisations)) {
@@ -194,25 +214,25 @@ multimorbidity <- function(data_hospitalisations = NULL, data_claims = NULL, id,
   }
 
   ### Process exclusions
-  mv <- c(id, code)
+  mv <- c("id", "code")
   data <- data[, ..mv]
   for (k in seq_along(.multimorbidity_exclusions())) {
     if (!is.null(.multimorbidity_exclusions()[[k]])) {
       cds <- .collapse_codes(x = .multimorbidity_exclusions()[[k]])
-      res <- grepl(pattern = cds, x = data[[code]])
+      res <- grepl(pattern = cds, x = data[["code"]])
       data[, (names(.multimorbidity_codes())[k]) := res]
     }
   }
   excl <- purrr::map(.x = names(.multimorbidity_exclusions()), .f = function(n) {
     if (!is.null(.multimorbidity_exclusions()[[n]])) {
-      data[, stats::setNames(list(sum(get(n))), n), by = id]
+      data[, stats::setNames(list(sum(get(n))), n), by = "id"]
     }
   })
   excl <- excl[!vapply(X = excl, FUN = is.null, FUN.VALUE = logical(length = 1L))]
-  excl <- purrr::reduce(.x = excl, .f = merge, all = TRUE, by = id)
-  data.table::setorderv(excl, cols = id)
+  excl <- purrr::reduce(.x = excl, .f = merge, all = TRUE, by = "id")
+  data.table::setorderv(excl, cols = "id")
   for (n in names(excl)) {
-    if (n != id) {
+    if (n != "id") {
       excl[, (n) := ifelse(get(n) > 0, 1, 0)]
     }
   }
