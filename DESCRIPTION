@@ -1,7 +1,7 @@
 Package: SCREAM
 Type: Package
 Title: Utility Functions for Data Analysis in SCREAM
-Version: 2021.08.02
+Version: 2021.08.03
 Authors@R: c(
   person(given = "Alessandro", 
          family = "Gasparini", 
