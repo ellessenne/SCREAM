@@ -11,3 +11,15 @@
 #' @examples
 #' data("icd10", package = "SCREAM")
 "icd10"
+
+#' @title Index of ATC Codes
+#'
+#' @format An index of ATC codes, including compound names.
+#' The following columns are included:
+#' * `ATC.Code` The ATC code.
+#' * `Name` Name of the compound corresponding to a given ATC.
+#' @rdname atc
+#'
+#' @examples
+#' data("atc", package = "SCREAM")
+"atc"
