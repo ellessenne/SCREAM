@@ -3,7 +3,7 @@
 \docType{data}
 \name{icd10}
 \alias{icd10}
-\title{Example of a dataset with ICD-10 codes}
+\title{Example Dataset with ICD-10 Codes}
 \format{
 A list with two simulated data frames of ICD-10 codes for 3,000 subjects, one with hospitalisation codes, and one with inpatient and outpatient claims.
 Each data set includes the following variables:
@@ -18,7 +18,7 @@ Each data set includes the following variables:
 icd10
 }
 \description{
-Example of a dataset with ICD-10 codes
+Example Dataset with ICD-10 Codes
 }
 \examples{
 data("icd10", package = "SCREAM")
