@@ -1,7 +1,7 @@
 Package: SCREAM
 Type: Package
 Title: Utility Functions for Data Analysis in SCREAM
-Version: 2021.09.01
+Version: 2021.09.17
 Authors@R: c(
   person(given = "Alessandro", 
          family = "Gasparini", 
@@ -35,8 +35,7 @@ Suggests:
 URL: https://github.com/ellessenne/SCREAM
 BugReports: https://github.com/ellessenne/SCREAM/issues
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.1.1
+RoxygenNote: 7.1.2
 ByteCompile: true
 Language: en-GB
 Config/testthat/edition: 3
-  
