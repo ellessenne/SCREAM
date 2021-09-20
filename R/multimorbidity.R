@@ -6,10 +6,13 @@
 #' Must be in long format and contain a column with subject IDs, ICD-10 codes, dates at which each code was recorded, and an index date at which the conditions are calculated.
 #' @param data_claims Dataset used for data input, containing inpatient and outpatient codes (see the algorithm in the paper by Tonelli et al.).
 #' Must be in long format and contain a column with subject IDs, ICD-10 codes, dates at which each code was recorded, and an index date at which the conditions are calculated.
+#' @param data_drugs Dataset used for data input, containing drugs purchases. This expands the algorithm by Tonelli et al., and must be in long format and including a column with subject IDs, ATC codes, dates at which each drug was purchased, how many packages of such drugs were purchased, and an index date at which the conditions are calculated.
 #' @param id Name of the column identifying subject IDs in every `data_*` dataset.
 #' @param code Name of the column identifying ICD-10 codes in `data_hospitalisations` and `data_claims`.
 #' @param date Name of the column identifying dates at which codes are recorded or drugs purchased in every `data_*` input dataset.
 #' @param index_date Name of the column identifying index date in every `data_*` input dataset.
+#' @param atc Name of the column identifying ATC codes in the `data_drugs` input dataset.
+#' @param npacks Name of the column identifying the number of purchased drug packages in the `data_drugs` input dataset.
 #' @param combine_cirrhosis Cirrhosis is defined as the concurrent presence of (at least) two codes, if `combine_cirrhosis = TRUE` (the default) then a single column (combination of the two) is returned.
 #' If not, two columns are returned.
 #'

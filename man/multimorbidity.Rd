@@ -24,6 +24,8 @@ Must be in long format and contain a column with subject IDs, ICD-10 codes, date
 \item{data_claims}{Dataset used for data input, containing inpatient and outpatient codes (see the algorithm in the paper by Tonelli et al.).
 Must be in long format and contain a column with subject IDs, ICD-10 codes, dates at which each code was recorded, and an index date at which the conditions are calculated.}
 
+\item{data_drugs}{Dataset used for data input, containing drugs purchases. This expands the algorithm by Tonelli et al., and must be in long format and including a column with subject IDs, ATC codes, dates at which each drug was purchased, how many packages of such drugs were purchased, and an index date at which the conditions are calculated.}
+
 \item{id}{Name of the column identifying subject IDs in every \verb{data_*} dataset.}
 
 \item{code}{Name of the column identifying ICD-10 codes in \code{data_hospitalisations} and \code{data_claims}.}
@@ -31,6 +33,10 @@ Must be in long format and contain a column with subject IDs, ICD-10 codes, date
 \item{date}{Name of the column identifying dates at which codes are recorded or drugs purchased in every \verb{data_*} input dataset.}
 
 \item{index_date}{Name of the column identifying index date in every \verb{data_*} input dataset.}
+
+\item{atc}{Name of the column identifying ATC codes in the \code{data_drugs} input dataset.}
+
+\item{npacks}{Name of the column identifying the number of purchased drug packages in the \code{data_drugs} input dataset.}
 
 \item{combine_cirrhosis}{Cirrhosis is defined as the concurrent presence of (at least) two codes, if \code{combine_cirrhosis = TRUE} (the default) then a single column (combination of the two) is returned.
 If not, two columns are returned.}
