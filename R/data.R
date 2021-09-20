@@ -28,8 +28,8 @@
 #'
 #' @format A data frame with drug utilisation information for 3,000 subjects with the following columns:
 #' * `id` Subject ID.
-#' * `date` Date corresponding to each code.
-#' * `code` ATC code.
+#' * `date` Date corresponding to each drug purchase.
+#' * `atc` ATC code.
 #' * `npacks` Number of drug packages purchased at this given date.
 #' @rdname drug
 #'

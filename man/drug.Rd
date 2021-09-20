@@ -8,8 +8,8 @@
 A data frame with drug utilisation information for 3,000 subjects with the following columns:
 \itemize{
 \item \code{id} Subject ID.
-\item \code{date} Date corresponding to each code.
-\item \code{code} ATC code.
+\item \code{date} Date corresponding to each drug purchase.
+\item \code{atc} ATC code.
 \item \code{npacks} Number of drug packages purchased at this given date.
 }
 }
