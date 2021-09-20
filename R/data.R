@@ -29,6 +29,7 @@
 #' @format A data frame with drug utilisation information for 3,000 subjects with the following columns:
 #' * `id` Subject ID.
 #' * `date` Date corresponding to each drug purchase.
+#' * `index_date` Index date (used e.g. to calculate multimorbidity at that specific point in time).
 #' * `atc` ATC code.
 #' * `npacks` Number of drug packages purchased at this given date.
 #' @rdname drug

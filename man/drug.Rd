@@ -9,6 +9,7 @@ A data frame with drug utilisation information for 3,000 subjects with the follo
 \itemize{
 \item \code{id} Subject ID.
 \item \code{date} Date corresponding to each drug purchase.
+\item \code{index_date} Index date (used e.g. to calculate multimorbidity at that specific point in time).
 \item \code{atc} ATC code.
 \item \code{npacks} Number of drug packages purchased at this given date.
 }
