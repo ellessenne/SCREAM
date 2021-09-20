@@ -6,10 +6,10 @@
 #' Must be in long format and contain a column with subject IDs, ICD-10 codes, dates at which each code was recorded, and an index date at which the conditions are calculated.
 #' @param data_claims Dataset used for data input, containing inpatient and outpatient codes (see the algorithm in the paper by Tonelli et al.).
 #' Must be in long format and contain a column with subject IDs, ICD-10 codes, dates at which each code was recorded, and an index date at which the conditions are calculated.
-#' @param id Name of the column identifying subject IDs in `data`.
-#' @param code Name of the column identifying ICD-10 codes in `data`.
-#' @param date Name of the column identifying dates at which codes are recorded in `data`.
-#' @param index_date Name of the column identifying index date in `data`.
+#' @param id Name of the column identifying subject IDs in every `data_*` dataset.
+#' @param code Name of the column identifying ICD-10 codes in `data_hospitalisations` and `data_claims`.
+#' @param date Name of the column identifying dates at which codes are recorded or drugs purchased in every `data_*` input dataset.
+#' @param index_date Name of the column identifying index date in every `data_*` input dataset.
 #' @param combine_cirrhosis Cirrhosis is defined as the concurrent presence of (at least) two codes, if `combine_cirrhosis = TRUE` (the default) then a single column (combination of the two) is returned.
 #' If not, two columns are returned.
 #'
@@ -21,36 +21,49 @@
 #'
 #' @examples
 #' data("icd10", package = "SCREAM")
+#' data("drug", package = "SCREAM")
 #' multimorbidity(
 #'   data_hospitalisations = icd10$hospitalisations,
 #'   data_claims = icd10$claims,
+#'   data_drugs = drug,
 #'   id = "id",
 #'   code = "code",
 #'   date = "date",
-#'   index_date = "index_date"
+#'   index_date = "index_date",
+#'   atc = "atc",
+#'   npacks = "npacks"
 #' )
-multimorbidity <- function(data_hospitalisations = NULL, data_claims = NULL, id, code, date, index_date, combine_cirrhosis = TRUE) {
+multimorbidity <- function(data_hospitalisations, data_claims, data_drugs, id, code, date, index_date, atc, npacks, combine_cirrhosis = TRUE) {
+  # devtools::load_all()
   # library(dplyr)
   # data("icd10", package = "SCREAM")
+  # data("drug", package = "SCREAM")
   # data_hospitalisations <- icd10$hospitalisations
   # data_claims <- icd10$claims
   # data_hospitalisations <- rename(data_hospitalisations, lopnr = id, diagnosis = code, datum = date)
   # data_claims <- rename(data_claims, lopnr = id, diagnosis = code, datum = date)
+  # data_drugs <- rename(drug, lopnr = id, antal = npacks, datum = date)
   # id <- "lopnr"
   # code <- "diagnosis"
   # date <- "datum"
+  # atc <- "atc"
+  # npacks <- "antal"
   # index_date <- "index_date"
+  # combine_cirrhosis <- TRUE
 
   ### Check arguments
   arg_checks <- checkmate::makeAssertCollection()
-  # 'data_inpatient' and 'data_outpatient' must be data.frames (or analogous)
+  # 'data_hospitalisations', 'data_claimns', and 'data_drugs' must be data.frames (or analogous)
   checkmate::assert_true(x = inherits(x = data_hospitalisations, what = c("data.frame", "data.table", "tbl", "tbl_df")), add = arg_checks)
   checkmate::assert_true(x = inherits(x = data_claims, what = c("data.frame", "data.table", "tbl", "tbl_df")), add = arg_checks)
+  checkmate::assert_true(x = inherits(x = data_drugs, what = c("data.frame", "data.table", "tbl", "tbl_df")), add = arg_checks)
   # id, code, date, index_date must be a single string value
   checkmate::assert_string(x = id, add = arg_checks)
   checkmate::assert_string(x = code, add = arg_checks)
   checkmate::assert_string(x = date, add = arg_checks)
   checkmate::assert_string(x = index_date, add = arg_checks)
+  checkmate::assert_string(x = atc, add = arg_checks)
+  checkmate::assert_string(x = npacks, add = arg_checks)
   # combine_cirrhosis must be a boolean
   checkmate::assert_logical(x = combine_cirrhosis, add = arg_checks)
   checkmate::assert_string(x = index_date, add = arg_checks)
@@ -63,17 +76,32 @@ multimorbidity <- function(data_hospitalisations = NULL, data_claims = NULL, id,
   checkmate::assert_subset(x = code, choices = names(data_claims), add = arg_checks)
   checkmate::assert_subset(x = date, choices = names(data_claims), add = arg_checks)
   checkmate::assert_subset(x = index_date, choices = names(data_claims), add = arg_checks)
+  # Analogous for data_drugs
+  checkmate::assert_subset(x = id, choices = names(data_drugs), add = arg_checks)
+  checkmate::assert_subset(x = date, choices = names(data_drugs), add = arg_checks)
+  checkmate::assert_subset(x = index_date, choices = names(data_drugs), add = arg_checks)
+  checkmate::assert_subset(x = atc, choices = names(data_drugs), add = arg_checks)
+  checkmate::assert_subset(x = npacks, choices = names(data_drugs), add = arg_checks)
   # 'date', 'index_date' must be actual dates
   checkmate::assert_date(x = data_hospitalisations[[date]], add = arg_checks)
   checkmate::assert_date(x = data_hospitalisations[[index_date]], add = arg_checks)
   checkmate::assert_date(x = data_claims[[date]], add = arg_checks)
   checkmate::assert_date(x = data_claims[[index_date]], add = arg_checks)
+  checkmate::assert_date(x = data_drugs[[date]], add = arg_checks)
+  checkmate::assert_date(x = data_drugs[[index_date]], add = arg_checks)
+  # 'code', 'atc' must be strings
+  checkmate::assert_character(x = data_hospitalisations[[code]], add = arg_checks)
+  checkmate::assert_character(x = data_claims[[code]], add = arg_checks)
+  checkmate::assert_character(x = data_drugs[[atc]], add = arg_checks)
+  # 'npacks' must be numeric
+  checkmate::assert_numeric(x = data_drugs[[npacks]], add = arg_checks)
   # Report if there are any errors
   if (!arg_checks$isEmpty()) checkmate::reportAssertions(arg_checks)
 
   ### First, prep data
   data_hospitalisations <- .multimorbidity_prep_data(data = data_hospitalisations, id = id, code = code, date = date, index_date = index_date)
   data_claims <- .multimorbidity_prep_data(data = data_claims, id = id, code = code, date = date, index_date = index_date)
+  data_drugs <- .multimorbidity_prep_drugs(data = data_drugs, id = id, atc = atc, npacks = npacks, date = date, index_date = index_date)
 
   ### Then, calculate conditions for hospitalisation data
   out_hospitalisations <- .multimorbidity_compute(data_hospitalisations, doing_hospitalisations = TRUE)
@@ -83,7 +111,7 @@ multimorbidity <- function(data_hospitalisations = NULL, data_claims = NULL, id,
 
   ### Augment with zeros if some IDs are missing in either...
   IDdf <- data.table()
-  IDdf[, id := unique(c(data_hospitalisations[["id"]], data_claims[["id"]]))]
+  IDdf[, id := unique(c(data_hospitalisations[["id"]], data_claims[["id"]], data_drugs[["id"]]))]
   out_hospitalisations <- merge(out_hospitalisations, IDdf, all.y = TRUE, allow.cartesian = TRUE, by = "id")
   data.table::setnafill(x = out_hospitalisations, type = "const", fill = 0)
   out_claims <- merge(out_claims, IDdf, all.y = TRUE, allow.cartesian = TRUE, by = "id")
@@ -105,7 +133,7 @@ multimorbidity <- function(data_hospitalisations = NULL, data_claims = NULL, id,
     out[, (w) := res]
   }
 
-  # Finally, combine 'cirrhosis1' and 'cirrhosis2' before returning (if so)
+  # Combine 'cirrhosis1' and 'cirrhosis2' (if requested)
   if (combine_cirrhosis) {
     out[, cirrhosis := pmin(cirrhosis1, cirrhosis2)]
     out[, cirrhosis1 := NULL]
@@ -113,6 +141,14 @@ multimorbidity <- function(data_hospitalisations = NULL, data_claims = NULL, id,
     mv <- c("id", .multimorbidity_order())
     out <- out[, ..mv]
   }
+
+  ### Enrich algorithm with drugs data
+  out_drugs <- .multimorbidity_compute_drugs(data = data_drugs)
+  out_drugs <- merge(out_drugs, IDdf, all.y = TRUE, allow.cartesian = TRUE, by = "id")
+  data.table::setnafill(x = out_drugs, type = "const", fill = 0)
+  out[["cpain"]] <- ifelse(out_drugs[["cpain"]] == 1, 1, 0)
+  out[["cpain"]] <- ifelse(out_drugs[["cpain_no_epilepsy"]] == 1 & out[["epilepsy"]] == 0, 1, 0)
+  out[["depression"]] <- ifelse(out_drugs[["depression"]] == 1, 1, 0)
 
   ### Restore ID column and return
   data.table::setnames(x = out, old = "id", new = id)
@@ -131,6 +167,19 @@ multimorbidity <- function(data_hospitalisations = NULL, data_claims = NULL, id,
   data <- data[, ..mv]
   ### Assign standardised names
   data.table::setnames(x = data, new = c("id", "code", "date", "index_date"))
+  ### Return data.table
+  return(data)
+}
+
+#' @keywords internal
+.multimorbidity_prep_drugs <- function(data, id, atc, npacks, date, index_date) {
+  ### Turn x into a DT
+  data.table::setDT(data)
+  ### Subset only relevant columns
+  mv <- c(id, atc, npacks, date, index_date)
+  data <- data[, ..mv]
+  ### Assign standardised names
+  data.table::setnames(x = data, new = c("id", "atc", "npacks", "date", "index_date"))
   ### Return data.table
   return(data)
 }
@@ -242,6 +291,69 @@ multimorbidity <- function(data_hospitalisations = NULL, data_claims = NULL, id,
 
   ### Return
   out <- data.table::setDF(out)
+  return(out)
+}
+
+#' @keywords internal
+.multimorbidity_compute_drugs <- function(data) {
+  ### Keep only codes that can be used somewhere
+  idx <- vapply(X = .multimorbidity_drugs_atc(), FUN = function(x) !is.null(x), FUN.VALUE = logical(length = 1L))
+  allc <- .multimorbidity_drugs_atc()[idx]
+  allc <- lapply(X = allc, FUN = .collapse_codes)
+  allc <- paste(allc, collapse = "|")
+  mv <- c("id", "index_date")
+  safetydf <- data[, ..mv]
+  safetydf <- unique(safetydf)
+  idx <- stringi::stri_detect_regex(str = data[["atc"]], pattern = allc)
+  data <- data[idx]
+  data <- merge(data, safetydf, all.y = TRUE, allow.cartesian = TRUE, by = c("id", "index_date"))
+  data.table::set(data, which(is.na(data[["atc"]])), "atc", ".NOTADRUG!")
+  data.table::set(data, which(is.na(data[["npacks"]])), "npacks", 0)
+  data[["date"]][is.na(data[["date"]])] <- data[["index_date"]][is.na(data[["date"]])]
+
+  ### Filter purchases prior to index date
+  data <- data[date <= index_date]
+  ### Filter codes in the previous .yd years only
+  data[, .yd := index_date - date]
+  data[, .yd := as.numeric(.yd) / 365.242]
+  data[, .target := NA]
+  for (k in seq_along(.multimorbidity_drugs_atc())) {
+    if (!is.null(.multimorbidity_drugs_years()[[k]])) {
+      idx <- grep(pattern = .collapse_codes(x = .multimorbidity_drugs_atc()[[k]]), x = data[["atc"]])
+      data$.target[idx] <- .multimorbidity_drugs_years()[[k]]
+    }
+  }
+  data <- data[is.na(.target) | .yd <= .target]
+  data[, .yd := NULL]
+  data[, .target := NULL]
+  data <- merge(data, safetydf, all.y = TRUE, allow.cartesian = TRUE, by = c("id", "index_date"))
+  data.table::set(data, which(is.na(data[["code"]])), "code", ".NOTACODE!")
+  data.table::set(data, which(is.na(data[["atc"]])), "atc", ".NOTADRUG!")
+  data.table::set(data, which(is.na(data[["npacks"]])), "npacks", 0)
+  data[["date"]][is.na(data[["date"]])] <- data[["index_date"]][is.na(data[["date"]])]
+  for (d in seq_along(.multimorbidity_drugs_atc())) {
+    res <- stringi::stri_detect_regex(str = data[["atc"]], pattern = .collapse_codes(.multimorbidity_drugs_atc()[[d]]))
+    doing <- names(.multimorbidity_drugs_atc())[d]
+    data[[doing]] <- res
+    data[[doing]] <- data[[doing]] * data[["npacks"]]
+  }
+  data <- purrr::map(.x = names(.multimorbidity_drugs_atc()), .f = function(n) {
+    data[, stats::setNames(list(sum(get(n))), n), by = "id"]
+    # Use the following line instead to get one-zeros instead of counting the number of matches:
+    # data[, stats::setNames(list(as.numeric(sum(get(n)) > 0)), n), by = id]
+  })
+  data <- purrr::reduce(.x = data, .f = merge, all = TRUE, by = "id")
+
+  ### Apply the 'how many' logic
+  out <- data.table()
+  out[, id := data[["id"]]]
+  for (w in names(.multimorbidity_drugs_howmany())) {
+    doing <- .multimorbidity_drugs_howmany()[[w]]
+    res <- ifelse(data[[w]] >= doing, 1, 0)
+    out[, (w) := res]
+  }
+
+  ### Return
   return(out)
 }
 
@@ -444,6 +556,32 @@ multimorbidity <- function(data_hospitalisations = NULL, data_claims = NULL, id,
   )
 }
 
+#' @keywords internal
+.multimorbidity_drugs_atc <- function() {
+  list(
+    cpain = c("N02B", "N02A", "N02C", "N02CC", "N02BA01", "N02BA51", "N02BA71", "N02CC05", "N02BA02", "N02BA10", "N02AE01", "N02BA03", "N02CX02", "N02AC01", "N02AC04", "N02AC54", "N02BA11", "N02AA08", "N02AA58", "N02CA01", "N02CC06", "N02CA02", "N02CA52", "N02AB03", "N02CC07", "N02AA03", "N02CA07", "N02AX05", "N02CA04", "N02AA01", "N02BA13", "N02AA09", "N02BG10", "N02AF02", "N02CC02", "N02BG06", "N02AA02", "N02AA10", "N02BE01", "N02BE51", "N02BE71", "N02AB02", "N02CX01", "N02CC04", "N02BA06", "N02BA04", "N02CC01", "N02AX06", "N02AX02", "N02AX52", "N02BG08", "N02CC03"),
+    cpain_no_epilepsy = c("N03AF01", "N03AX12", "N03AX16"),
+    depression = list("N06AF", "N06AX22", "N06AX12", "N06AB04", "N06AX21", "N06AB10", "N06AB03", "N06AB08", "N06AF05", "N06AF01", "N06AX03", "N06AX11", "N06AG02", "N06AX06", "N06AB05", "N06AF03", "N06AX18", "N06AB06", "N06AF04", "N06AX05", "N06AX02", "N06AX16", "N06AX09", "N06AX26")
+  )
+}
+
+#' @keywords internal
+.multimorbidity_drugs_years <- function() {
+  list(
+    cpain = 1,
+    cpain_no_epilepsy = 1,
+    depression = 1
+  )
+}
+
+#' @keywords internal
+.multimorbidity_drugs_howmany <- function() {
+  list(
+    cpain = 4,
+    cpain_no_epilepsy = 4,
+    depression = 4
+  )
+}
 
 #' @keywords internal
 .collapse_codes <- function(x) paste0("^", paste(x, collapse = "|^"))

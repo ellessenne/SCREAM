@@ -5,12 +5,15 @@
 \title{Calculate multimorbidity domains}
 \usage{
 multimorbidity(
-  data_hospitalisations = NULL,
-  data_claims = NULL,
+  data_hospitalisations,
+  data_claims,
+  data_drugs,
   id,
   code,
   date,
   index_date,
+  atc,
+  npacks,
   combine_cirrhosis = TRUE
 )
 }
@@ -21,13 +24,13 @@ Must be in long format and contain a column with subject IDs, ICD-10 codes, date
 \item{data_claims}{Dataset used for data input, containing inpatient and outpatient codes (see the algorithm in the paper by Tonelli et al.).
 Must be in long format and contain a column with subject IDs, ICD-10 codes, dates at which each code was recorded, and an index date at which the conditions are calculated.}
 
-\item{id}{Name of the column identifying subject IDs in \code{data}.}
+\item{id}{Name of the column identifying subject IDs in every \verb{data_*} dataset.}
 
-\item{code}{Name of the column identifying ICD-10 codes in \code{data}.}
+\item{code}{Name of the column identifying ICD-10 codes in \code{data_hospitalisations} and \code{data_claims}.}
 
-\item{date}{Name of the column identifying dates at which codes are recorded in \code{data}.}
+\item{date}{Name of the column identifying dates at which codes are recorded or drugs purchased in every \verb{data_*} input dataset.}
 
-\item{index_date}{Name of the column identifying index date in \code{data}.}
+\item{index_date}{Name of the column identifying index date in every \verb{data_*} input dataset.}
 
 \item{combine_cirrhosis}{Cirrhosis is defined as the concurrent presence of (at least) two codes, if \code{combine_cirrhosis = TRUE} (the default) then a single column (combination of the two) is returned.
 If not, two columns are returned.}
@@ -40,13 +43,17 @@ Calculate 30 morbidity domains corresponding to chronic conditions, according to
 }
 \examples{
 data("icd10", package = "SCREAM")
+data("drug", package = "SCREAM")
 multimorbidity(
   data_hospitalisations = icd10$hospitalisations,
   data_claims = icd10$claims,
+  data_drugs = drug,
   id = "id",
   code = "code",
   date = "date",
-  index_date = "index_date"
+  index_date = "index_date",
+  atc = "atc",
+  npacks = "npacks"
 )
 }
 \references{
