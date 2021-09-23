@@ -11,7 +11,7 @@
 #'
 
 # Quiets concerns of R CMD check re: variable names used internally
-if (getRversion() >= "2.15.1") utils::globalVariables(c(".", "..mv", ".target", ".yd", "cirrhosis", "cirrhosis1", "cirrhosis2", "cpain", "ddiff", "ibs", "index_date", "lag1", "ok", "severe_constipation", "id"))
+if (getRversion() >= "2.15.1") utils::globalVariables(c(".", "..mv", ".target", ".yd", "cirrhosis", "cirrhosis1", "cirrhosis2", "cpain", "ddiff", "ibs", "index_date", "lag1", "ok", "severe_constipation", "id", "depression", "epilepsy", "drugs_cpain", "drugs_cpain_no_epilepsy", "drugs_depression"))
 
 #' @keywords internal
 .datatable.aware <- TRUE
