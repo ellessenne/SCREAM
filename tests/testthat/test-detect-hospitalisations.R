@@ -10,7 +10,7 @@ testthat::test_that("Codes for hospitalisations are detected properly", {
       outn <- multimorbidity(data_hospitalisations = Hn, data_claims = Cn, data_drugs = Dn, id = "id", code = "code", atc = "atc", npacks = "npacks", date = "date", index_date = "index_date", combine_cirrhosis = FALSE)
       w <- names(.multimorbidity_codes())[mi]
       testthat::expect_equal(object = outy[[w]], expected = 1)
-      testthat::expect_equal(object = outy[[w]], expected = 1)
+      testthat::expect_equal(object = outn[[w]], expected = 0)
     }
   }
 })
