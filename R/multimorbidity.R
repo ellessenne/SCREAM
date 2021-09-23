@@ -147,11 +147,14 @@ multimorbidity <- function(data_hospitalisations, data_claims, data_drugs, id, c
 
   ### Enrich algorithm with drugs data
   out_drugs <- .multimorbidity_compute_drugs(data = data_drugs)
-  out_drugs <- merge(out_drugs, IDdf, all.y = TRUE, allow.cartesian = TRUE, by = "id")
+  data.table::setnames(x = out_drugs, new = c("id", paste0("drugs_", names(out_drugs)[names(out_drugs) != "id"])))
+  out <- merge(x = out, y = out_drugs, all.x = TRUE, by = "id")
   data.table::setnafill(x = out_drugs, type = "const", fill = 0)
-  out[["cpain"]] <- ifelse(out_drugs[["cpain"]] == 1, 1, 0)
-  out[["cpain"]] <- ifelse(out_drugs[["cpain_no_epilepsy"]] == 1 & out[["epilepsy"]] == 0, 1, 0)
-  out[["depression"]] <- ifelse(out_drugs[["depression"]] == 1, 1, 0)
+  out[, cpain := ifelse(epilepsy == 1, pmax(cpain, drugs_cpain), pmax(cpain, drugs_cpain, drugs_cpain_no_epilepsy))]
+  out[, depression := pmax(depression, drugs_depression)]
+  out[, drugs_cpain := NULL]
+  out[, drugs_cpain_no_epilepsy := NULL]
+  out[, drugs_depression := NULL]
 
   ### Restore ID column and return
   data.table::setnames(x = out, old = "id", new = id)
