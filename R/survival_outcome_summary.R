@@ -20,7 +20,7 @@
 #'
 #' @return a dataframe showing the summary of the survival outcome.
 #' @export
-#' @importFrom dplyr "mutate" "summarise" "group_by"
+#' @importFrom dplyr "mutate" "summarise" "group_by" %>%
 #' @import lubridate spatstat.geom
 #'
 #' @examples
