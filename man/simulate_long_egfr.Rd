@@ -32,9 +32,9 @@ simulate_long_egfr(
 
 \item{lambda}{Parameter \eqn{lambda} of the baseline hazard for the exponential survival model.}
 
-\item{size}{Parameter \code{'size'} for the negative binomial distribution; see \code{\link[stats:NegBinomial]{stats::dnbinom()}}.}
+\item{size}{Parameter \code{'size'} for the negative binomial distribution; see \code{\link[stats:dnbinom]{stats::dnbinom()}}.}
 
-\item{prob}{Parameter \code{'prob'} for the negative binomial distribution; see \code{\link[stats:NegBinomial]{stats::dnbinom()}}.}
+\item{prob}{Parameter \code{'prob'} for the negative binomial distribution; see \code{\link[stats:dnbinom]{stats::dnbinom()}}.}
 
 \item{origin}{If \code{origin = NULL} (the default), observation times are relative to a time zero. Otherwise, if a date is passed to \code{origin}, all dates are re-calculated relative to it.}
 }

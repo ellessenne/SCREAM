@@ -2,9 +2,9 @@ testthat::test_that("Datasets with random names still work", {
   for (i in seq(50)) {
     allc <- .multimorbidity_codes()
     allc <- unlist(allc)
-    Cdf <- data.frame(id = 1, code = "NOTaCODE", index_date = Sys.Date(), date = Sys.Date() - 1)
-    Hdf <- data.frame(id = 1, index_date = Sys.Date(), date = Sys.Date() - 1, code = sample(x = allc, size = 5))
-    Ddf <- data.frame(id = 1, index_date = Sys.Date(), date = Sys.Date() - 1, atc = "NOTaDRUG", npacks = 1)
+    Cdf <- data.frame(id = 1, code = "NOTaCODE", index_date = Sys.Date(), date = Sys.Date() - 1, stringsAsFactors = F)
+    Hdf <- data.frame(id = 1, index_date = Sys.Date(), date = Sys.Date() - 1, code = sample(x = allc, size = 5), stringsAsFactors = F)
+    Ddf <- data.frame(id = 1, index_date = Sys.Date(), date = Sys.Date() - 1, atc = "NOTaDRUG", npacks = 1, stringsAsFactors = F)
 
     out1 <- multimorbidity(data_hospitalisations = Hdf, data_claims = Cdf, data_drugs = Ddf, id = "id", code = "code", atc = "atc", npacks = "npacks", date = "date", index_date = "index_date", combine_cirrhosis = FALSE)
     out1[["id"]] <- NULL

@@ -37,3 +37,19 @@
 #' @examples
 #' data("drug", package = "SCREAM")
 "drug"
+
+
+#' @title Example Dataset of survival outcome
+#'
+#' @format A data frame of 1,000 subjects with the following columns:
+#' * `lopnr` subject unique ID.
+#' * `index_date` index date.
+#' * `tstart_as_Date` or `tstart` index date with class `Date` or type `numeric`.
+#' * `tstop_as_Date` or `tstop` outcome/censoring date with class `Date` or type `numeric`.
+#' * `outcome_event` indicator of the survival outcome.
+#' * `null_weight` weight for each included patients.
+#' @rdname sample_survival_data
+#'
+#' @examples
+#' data("sample_survival_data", package = "SCREAM")
+"sample_survival_data"

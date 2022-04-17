@@ -25,7 +25,10 @@ Imports:
   purrr,
   stats,
   stringi,
-  usethis
+  usethis, 
+  dplyr, 
+  lubridate, 
+  spatstat.geom
 Suggests:
   checkmate,
   covr,

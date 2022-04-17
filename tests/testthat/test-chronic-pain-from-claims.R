@@ -1,11 +1,11 @@
-Hn <- data.frame(id = 1, code = "NOTaCODE", index_date = Sys.Date(), date = Sys.Date() - 1)
-Dn <- data.frame(id = 1, index_date = Sys.Date(), date = Sys.Date() - 1, atc = "NOTaDRUG", npacks = 1)
+Hn <- data.frame(id = 1, code = "NOTaCODE", index_date = Sys.Date(), date = Sys.Date() - 1, stringsAsFactors = F)
+Dn <- data.frame(id = 1, index_date = Sys.Date(), date = Sys.Date() - 1, atc = "NOTaDRUG", npacks = 1, stringsAsFactors = F)
 
 testthat::test_that("The algorithm for chronic pain works as expected with two codes", {
   ### Codes need to be >30 days apart to be detected
   for (c in .multimorbidity_codes()[["cpain"]]) {
-    Cy <- data.frame(id = 1, index_date = Sys.Date(), date = Sys.Date() - c(1, 61), code = c)
-    Cn <- data.frame(id = 1, index_date = Sys.Date(), date = Sys.Date() - c(1, 2), code = c)
+    Cy <- data.frame(id = 1, index_date = Sys.Date(), date = Sys.Date() - c(1, 61), code = c, stringsAsFactors = F)
+    Cn <- data.frame(id = 1, index_date = Sys.Date(), date = Sys.Date() - c(1, 2), code = c, stringsAsFactors = F)
     outy <- multimorbidity(data_hospitalisations = Hn, data_claims = Cy, data_drugs = Dn, id = "id", code = "code", atc = "atc", npacks = "npacks", date = "date", index_date = "index_date", combine_cirrhosis = FALSE)
     outn <- multimorbidity(data_hospitalisations = Hn, data_claims = Cn, data_drugs = Dn, id = "id", code = "code", atc = "atc", npacks = "npacks", date = "date", index_date = "index_date", combine_cirrhosis = FALSE)
     testthat::expect_equal(object = outy[["cpain"]], expected = 1)
@@ -16,8 +16,8 @@ testthat::test_that("The algorithm for chronic pain works as expected with two c
 testthat::test_that("The algorithm for chronic pain works as expected with three codes", {
   ### What if we have three codes?
   for (c in .multimorbidity_codes()[["cpain"]]) {
-    Cy <- data.frame(id = 1, index_date = Sys.Date(), date = Sys.Date() - c(1, 61, 121), code = c)
-    Cn <- data.frame(id = 1, index_date = Sys.Date(), date = Sys.Date() - c(1, 2, 3), code = c)
+    Cy <- data.frame(id = 1, index_date = Sys.Date(), date = Sys.Date() - c(1, 61, 121), code = c, stringsAsFactors = F)
+    Cn <- data.frame(id = 1, index_date = Sys.Date(), date = Sys.Date() - c(1, 2, 3), code = c, stringsAsFactors = F)
     outy <- multimorbidity(data_hospitalisations = Hn, data_claims = Cy, data_drugs = Dn, id = "id", code = "code", atc = "atc", npacks = "npacks", date = "date", index_date = "index_date", combine_cirrhosis = FALSE)
     outn <- multimorbidity(data_hospitalisations = Hn, data_claims = Cn, data_drugs = Dn, id = "id", code = "code", atc = "atc", npacks = "npacks", date = "date", index_date = "index_date", combine_cirrhosis = FALSE)
     testthat::expect_equal(object = outy[["cpain"]], expected = 1)
@@ -28,8 +28,8 @@ testthat::test_that("The algorithm for chronic pain works as expected with three
 testthat::test_that("The algorithm for chronic pain works as expected with a mix of codes", {
   ### What if we have a mix?
   for (c in .multimorbidity_codes()[["cpain"]]) {
-    Cy <- data.frame(id = 1, index_date = Sys.Date(), date = Sys.Date() - c(1, 2, 61), code = c)
-    Cn <- data.frame(id = 1, index_date = Sys.Date(), date = Sys.Date() - c(1, 2), code = c)
+    Cy <- data.frame(id = 1, index_date = Sys.Date(), date = Sys.Date() - c(1, 2, 61), code = c, stringsAsFactors = F)
+    Cn <- data.frame(id = 1, index_date = Sys.Date(), date = Sys.Date() - c(1, 2), code = c, stringsAsFactors = F)
     outy <- multimorbidity(data_hospitalisations = Hn, data_claims = Cy, data_drugs = Dn, id = "id", code = "code", atc = "atc", npacks = "npacks", date = "date", index_date = "index_date", combine_cirrhosis = FALSE)
     outn <- multimorbidity(data_hospitalisations = Hn, data_claims = Cn, data_drugs = Dn, id = "id", code = "code", atc = "atc", npacks = "npacks", date = "date", index_date = "index_date", combine_cirrhosis = FALSE)
     testthat::expect_equal(object = outy[["cpain"]], expected = 1)
